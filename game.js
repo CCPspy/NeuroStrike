@@ -4,7 +4,6 @@ import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, limit
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'neurostrike';
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBlx-eaaSLRvbzdk3-ui7iPvFO_6VS_Jno",
   authDomain: "neurostrike-7bce9.firebaseapp.com",
@@ -147,9 +146,7 @@ try {
                 updatePersistentLeaderboard();
             }, (err) => console.error("Snapshot error:", err));
         } else {
-            // FIX: Only trigger anonymous auth if NO account is detected
             signInAnonymously(auth).catch((error) => console.error("Anonymous auth failed", error));
-            
             document.getElementById('btn-google-login').style.display = 'block';
             document.getElementById('user-profile-display').style.display = 'none';
         }
@@ -584,15 +581,27 @@ window.addEventListener('keydown', function(e) {
         }
     }
     
+    let isInputFocused = document.activeElement && document.activeElement.tagName === 'INPUT';
+    let isCalcActive = (document.getElementById('calculator-widget').style.display === 'block');
+    
+    if (gameState === 'answering' && isCalcActive && !isInputFocused) {
+        if (e.key >= '0' && e.key <= '9') window.inputCalcDigit(e.key);
+        if (e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/') window.inputCalcOperator(e.key);
+        if (e.key === 'Enter' || e.key === '=') window.calculateResult();
+        if (e.key === 'Escape' || e.key === 'c' || e.key === 'C' || e.key === 'Backspace') window.clearCalc();
+    }
+    
     if (gameState === 'playing') {
         if (spawnedCount >= totalToSpawn) {
             if ((e.key >= '0' && e.key <= '9') || e.key === '-' || e.key === 'Enter') {
-                if (e.key !== 'Enter') { initialKeyPress = e.key; }
-                playNumbers = [];
+                if (!isCalcActive) { 
+                    if (e.key !== 'Enter') { initialKeyPress = e.key; }
+                    playNumbers = [];
+                }
             }
         }
         
-        if (document.getElementById('calculator-widget').style.display === 'block') {
+        if (isCalcActive && !isInputFocused) {
             if (e.key >= '0' && e.key <= '9') window.inputCalcDigit(e.key);
             if (e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/') window.inputCalcOperator(e.key);
             if (e.key === 'Enter' || e.key === '=') window.calculateResult();
@@ -677,7 +686,6 @@ class PlayNumber {
         let speed = (Math.random() * 4 + 3) * spdScale;
         this.size = Math.random() * 80 + 120; 
         
-        // DECOY OVERRIDE - Crazy speed, random sizes, pure distraction
         if (isDecoy) {
             this.type = 0;
             this.color = (Math.random() > 0.5) ? '#ff0000' : '#ff4444'; 
@@ -691,13 +699,12 @@ class PlayNumber {
                 if (customDigits === 3) { this.value = Math.floor(Math.random() * 900) + 100; }
                 if (customNeg && Math.random() > 0.5) { this.isNegative = true; }
             }
-            return; // EXIT EARLY: Decoys do not touch running totals
+            return; 
         }
         
         this.vx = Math.cos(angle) * speed;
         this.vy = Math.sin(angle) * speed;
         
-        // REAL NUMBERS
         if (currentLevel === 999) {
             if (customDigits === 2) { this.value = Math.floor(Math.random() * 90) + 10; }
             if (customDigits === 3) { this.value = Math.floor(Math.random() * 900) + 100; }
@@ -745,7 +752,6 @@ class PlayNumber {
          if (currentLevel === 999 && customSwap) { canSwitch = true; }
          if (currentDifficulty === 'Extreme' || currentDifficulty === 'Impossible') { canSwitch = true; }
          
-         // Only swap REAL numbers
          if (canSwitch && !this.hasSwitched && this.type !== 0) {
              let dx = this.x - canvas.width/2;
              let dy = this.y - canvas.height/2;
@@ -828,13 +834,11 @@ function gameLoop() {
         }
         
         if (spawnedCount < totalToSpawn) {
-            // Spawn Real Numbers
             if (frameCount % spawnRate === 0) {
                 playNumbers.push(new PlayNumber(false));
                 spawnedCount++;
             }
             
-            // Randomly Spawn Decoys (Does not count against spawnedCount)
             let spawnDecoy = false;
             if (currentLevel === 999) {
                 if (customColorMode !== 'one' && Math.random() < (0.025 * customSpeedMultiplier)) { spawnDecoy = true; }
@@ -851,7 +855,6 @@ function gameLoop() {
             if (playNumbers.length === 0) {
                 gameState = 'answering';
                 document.getElementById('skip-layer').style.display = 'none';
-                document.getElementById('calculator-widget').style.display = 'none';
                 showLayer('answer-layer');
                 resetAnswerLayer();
             }
@@ -928,6 +931,7 @@ function resetAnswerLayer() {
 
 async function checkAnswer() {
     answerTime = Date.now();
+    document.getElementById('calculator-widget').style.display = 'none'; 
     let v1 = parseInt(document.getElementById('ans1') ? document.getElementById('ans1').value : 0) || 0;
     let v2 = parseInt(document.getElementById('ans2') ? document.getElementById('ans2').value : 0) || 0;
     let v3 = parseInt(document.getElementById('ans3') ? document.getElementById('ans3').value : 0) || 0;
@@ -961,7 +965,6 @@ async function checkAnswer() {
         
         htmlStr += "<p style='color: white; font-size: 24px; margin-top: 0;'>Points Earned: " + earned + " / " + customMaxScore + "</p>";
         
-        // Push High Score to Database
         if (currentUser && earned > 0 && db) {
             const scoreDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboards', currentUser.uid);
             const snap = await getDoc(scoreDocRef);
@@ -1009,7 +1012,6 @@ async function checkAnswer() {
              htmlStr += "<div style='height: 25px; margin-bottom: 25px;'></div>";
         }
         
-        // NEW CUSTOM BUTTONS
         htmlStr += "<div style='display: flex; gap: 15px;'>";
         htmlStr += "<button id='retry-custom-btn' class='diff-btn'>Try Again</button>";
         htmlStr += "<button id='custom-menu-btn' class='diff-btn'>Custom Menu</button>";
