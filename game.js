@@ -4,6 +4,7 @@ import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, limit
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'neurostrike';
 
+// REPLACE THIS BLOCK WITH YOUR FIREBASE CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyBlr-ezU5LMwbcdk0-uIpHPO_6VS_JHo",
   authDomain: "neurostrike-7bce9.firebaseapp.com",
@@ -20,33 +21,7 @@ let playerName = "Player";
 let playerPfp = "";
 let globalLeaderboard = [];
 
-// CRITICAL FIX: Module variables must be declared at the top to prevent Strict Mode ReferenceErrors
-let frameCount = 0;
-let runningTotal1 = 0;
-let runningTotal2 = 0;
-let runningTotal3 = 0;
-let gameState = 'menu';
-let menuNumbers = [];
-let playNumbers = [];
-let mouseX = -1000;
-let mouseY = -1000;
-let currentDifficulty = '';
-let highestUnlocked = 1; 
-let currentLevel = 0;
-let spawnedCount = 0;
-let totalToSpawn = 0;
-let popupTimer = null;
-let tutorialMode = 'play';
-let initialKeyPress = '';
-let customSpeedMultiplier = 1.0;
-let customDigits = 1;
-let customColorMode = 'one';
-let customSwap = false;
-let customNeg = false;
-let customCalc = false;
-let customMaxScore = 0;
-let answerTime = 0;
-
+// Wraps initialization in Try/Catch so if Firebase is not configured, the game still visually loads!
 try {
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
@@ -81,6 +56,7 @@ try {
                 document.getElementById('display-pfp-img').src = playerPfp;
             }
 
+            // Load Progress
             const progRef = doc(db, 'artifacts', appId, 'users', user.uid, 'progress', 'data');
             const progSnap = await getDoc(progRef);
             if (progSnap.exists()) {
@@ -88,6 +64,7 @@ try {
                 updateMainMenuButtons();
             }
 
+            // Real-time Leaderboard Sync 
             const lbRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboards');
             onSnapshot(lbRef, (snapshot) => {
                 globalLeaderboard = [];
@@ -96,12 +73,14 @@ try {
                 updatePersistentLeaderboard();
             }, (err) => console.error("Snapshot error:", err));
         } else {
+            // FIX: IF LOGIN FAILS ENTIRELY, FORCE THE LOGIN BUTTON TO SHOW
             document.getElementById('btn-google-login').style.display = 'block';
             document.getElementById('user-profile-display').style.display = 'none';
         }
     });
 } catch (error) {
     console.error("Firebase Init Failed:", error);
+    // Force button to show even if offline
     document.getElementById('btn-google-login').style.display = 'block';
     document.getElementById('btn-google-login').innerText = 'Offline Mode';
 }
@@ -112,6 +91,7 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
         let savedProgress = highestUnlocked;
         const result = await signInWithPopup(auth, googleProvider);
         
+        // Sync anonymous progress to real account
         const progRef = doc(db, 'artifacts', appId, 'users', result.user.uid, 'progress', 'data');
         const progSnap = await getDoc(progRef);
         let cloudProgress = progSnap.exists() ? progSnap.data().highestUnlocked || 1 : 1;
@@ -150,6 +130,7 @@ document.getElementById('btn-save-account').addEventListener('click', async func
         document.getElementById('display-name-text').innerText = playerName;
         document.getElementById('display-pfp-img').src = playerPfp;
         
+        // Update their existing score name/pfp
         const scoreDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboards', currentUser.uid);
         const snap = await getDoc(scoreDocRef);
         if(snap.exists()) {
@@ -282,6 +263,7 @@ function updateMainMenuButtons() {
     if (highestUnlocked > 9) { document.getElementById('btn-extreme').classList.remove('locked-btn'); }
     if (highestUnlocked > 12) { document.getElementById('btn-impossible').classList.remove('locked-btn'); }
 }
+
 
 document.getElementById('btn-easy').addEventListener('click', function() {
     openSubMenu('Easy', '#00ff00');
