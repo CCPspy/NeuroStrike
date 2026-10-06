@@ -21,6 +21,33 @@ let playerName = "Player";
 let playerPfp = "";
 let globalLeaderboard = [];
 
+// CRITICAL FIX: Variables hoisted to prevent Strict Mode crashing the background
+let frameCount = 0;
+let runningTotal1 = 0;
+let runningTotal2 = 0;
+let runningTotal3 = 0;
+let gameState = 'menu';
+let menuNumbers = [];
+let playNumbers = [];
+let mouseX = -1000;
+let mouseY = -1000;
+let currentDifficulty = '';
+let highestUnlocked = 1; 
+let currentLevel = 0;
+let spawnedCount = 0;
+let totalToSpawn = 0;
+let popupTimer = null;
+let tutorialMode = 'play';
+let initialKeyPress = '';
+let customSpeedMultiplier = 1.0;
+let customDigits = 1;
+let customColorMode = 'one';
+let customSwap = false;
+let customNeg = false;
+let customCalc = false;
+let customMaxScore = 0;
+let answerTime = 0;
+
 // Wraps initialization in Try/Catch so if Firebase is not configured, the game still visually loads!
 try {
     app = initializeApp(firebaseConfig);
@@ -944,32 +971,6 @@ async function checkAnswer() {
     
     gameState = 'answered';
 }
-
-let frameCount = 0;
-let runningTotal1 = 0;
-let runningTotal2 = 0;
-let runningTotal3 = 0;
-let gameState = 'menu';
-let menuNumbers = [];
-let playNumbers = [];
-let mouseX = -1000;
-let mouseY = -1000;
-let currentDifficulty = '';
-let highestUnlocked = 1; 
-let currentLevel = 0;
-let spawnedCount = 0;
-let totalToSpawn = 0;
-let popupTimer = null;
-let tutorialMode = 'play';
-let initialKeyPress = '';
-let customSpeedMultiplier = 1.0;
-let customDigits = 1;
-let customColorMode = 'one';
-let customSwap = false;
-let customNeg = false;
-let customCalc = false;
-let customMaxScore = 0;
-let answerTime = 0;
 
 for (let i = 0; i < 70; i = i + 1) {
     menuNumbers.push(new MenuNumber(Math.random() * canvas.width));
