@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuroStrike</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="profile-widget" style="position: absolute; top: 15px; right: 15px; z-index: 150; display: flex; align-items: center; gap: 10px; pointer-events: auto;">
+        <button id="btn-google-login" class="diff-btn" style="padding: 8px 16px; font-size: 14px; border-color: #4285F4; color: #4285F4; display: none;">Login with Google</button>
+        <div id="user-profile-display" style="display: none; align-items: center; gap: 10px; cursor: pointer;">
+            <span id="display-name-text" style="color: white; font-weight: bold; text-shadow: 0 0 5px #00ffff;">Player</span>
+            <img id="display-pfp-img" src="https://placehold.co/45x45/222222/00ffff?text=P" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid #00ffff; object-fit: cover; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+        </div>
+    </div>
+
+    <div id="ui-layer">
+        <h1 id="game-title">NEUROSTRIKE</h1>
+        <h2 id="author-name">YANXI LI (ERIC)</h2>
+        <div id="menu-buttons">
+            <button class="diff-btn" id="btn-easy">Easy</button>
+            <button class="diff-btn locked-btn" id="btn-medium">Medium</button>
+            <button class="diff-btn locked-btn" id="btn-hard">Hard</button>
+            <button class="diff-btn locked-btn" id="btn-extreme">Extreme</button>
+            <button class="diff-btn locked-btn" id="btn-impossible">Impossible</button>
+            <button class="diff-btn locked-btn" id="btn-custom">Custom</button>
+        </div>
+    </div>
+    
+    <div id="sub-level-layer" style="display: none;">
+        <div id="title-row">
+            <h1 id="sub-title">Select Level</h1>
+            <button id="btn-info" class="diff-btn">?</button>
+        </div>
+        <div id="sub-buttons">
+            <button class="diff-btn sub-btn" id="btn-sub-1">Level 1</button>
+            <button class="diff-btn sub-btn" id="btn-sub-2">Level 2</button>
+            <button class="diff-btn sub-btn" id="btn-sub-3">Level 3</button>
+        </div>
+        <button class="diff-btn back-btn" id="btn-back">Back to Menu</button>
+    </div>
+
+    <div id="answer-layer" style="display: none;"></div>
+    
+    <div id="popup-layer"></div>
+
+    <div id="tutorial-layer" style="display: none;">
+        <div class="tutorial-box">
+            <h2 id="tut-title">RULES</h2>
+            <p id="tut-text">Rules go here.</p>
+            <button id="tut-start" class="diff-btn">I'm Ready</button>
+        </div>
+    </div>
+    
+    <div id="account-layer" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); z-index: 300;">
+        <div style="background: #1a1a2e; border: 3px solid #00ffff; padding: 40px; border-radius: 15px; text-align: center; box-shadow: 0 0 30px rgba(0, 255, 255, 0.4); pointer-events: auto; display: flex; flex-direction: column; gap: 15px;">
+            <h2 style="color: #00ffff; margin-top: 0; font-size: 30px;">ACCOUNT SETTINGS</h2>
+            
+            <div style="text-align: left; color: white; font-size: 18px;">
+                <label>Display Name (Max 14 chars):</label><br>
+                <input type="text" id="account-name-input" maxlength="14" placeholder="Your Name..." style="font-size: 20px; padding: 10px; margin-top: 5px; background: #222; color: white; border: 2px solid #00ffff; border-radius: 8px; width: 300px;">
+            </div>
+
+            <div style="text-align: left; color: white; font-size: 18px;">
+                <label>Profile Picture (Image URL):</label><br>
+                <input type="url" id="account-pfp-input" placeholder="https://..." style="font-size: 20px; padding: 10px; margin-top: 5px; background: #222; color: white; border: 2px solid #00ffff; border-radius: 8px; width: 300px;">
+            </div>
+            
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 15px;">
+                <button id="btn-save-account" class="diff-btn" style="border-color: #00ff00; color: #00ff00;">Save Changes</button>
+                <button id="btn-cancel-account" class="diff-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="skip-layer" style="display: none; position: absolute; bottom: 30px; width: 100%; justify-content: center; align-items: center; pointer-events: none; flex-direction: column;">
+        <button id="btn-skip" class="diff-btn" style="pointer-events: auto; padding: 10px 20px; font-size: 16px; border-color: #00ffff; color: #00ffff;">Skip to Submission</button>
+        <p style="color: #aaa; font-size: 14px; margin-top: 5px; text-shadow: 0 0 3px black; pointer-events: none;">(Just start typing on PC)</p>
+    </div>
+
+    <div id="custom-layer" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; justify-content: center; align-items: center; background: rgba(10, 10, 25, 0.95); z-index: 150;">
+        <div style="display: flex; gap: 30px; align-items: flex-start; max-width: 1100px; width: 100%; padding: 0 20px;">
+            <div style="background: #1a1a2e; border: 3px solid #ff00ff; padding: 40px; border-radius: 15px; flex: 2; text-align: center; box-shadow: 0 0 30px rgba(255, 0, 255, 0.3); pointer-events: auto; display: flex; flex-direction: column; gap: 15px;">
+                <h2 style="color: #ff00ff; font-size: 40px; margin-top: 0; margin-bottom: 5px;">CUSTOM LEVEL</h2>
+                <h3 id="custom-score-display" style="color: #00ff00; margin-top: 0; margin-bottom: 15px; font-size: 24px;">Potential Score: 150 pts</h3>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; color: white; font-size: 20px;">
+                    <label>Number Amount (<span id="count-val">15</span>):</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="range" id="c-amount-slider" min="10" max="30" value="15" style="width: 140px;">
+                        <input type="number" id="c-amount-input" min="3" max="100" value="15" style="width: 60px; background: #222; color: white; border: 1px solid #00ffff; text-align: center; font-size: 18px;">
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; color: white; font-size: 20px;">
+                    <label>Speed (Num/Sec): <span id="speed-val">1.0</span></label>
+                    <input type="range" id="custom-speed" min="0.5" max="4.0" step="0.1" value="1.0" style="width: 215px;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; color: white; font-size: 20px;">
+                    <label>Digits:</label>
+                    <select id="custom-digits" style="background: #222; color: white; border: 1px solid #00ffff; padding: 8px; border-radius: 8px; font-size: 18px; width: 215px;">
+                        <option value="1">1 Digit (x1)</option>
+                        <option value="2">2 Digits (x2)</option>
+                        <option value="3">3 Digits (x3)</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; color: white; font-size: 20px;">
+                    <label>Color Mode:</label>
+                    <select id="custom-colormode" style="background: #222; color: white; border: 1px solid #00ffff; padding: 8px; border-radius: 8px; font-size: 18px; width: 215px;">
+                        <option value="one">1 Color (+0%)</option>
+                        <option value="decoys">Decoys (+20%)</option>
+                        <option value="two">2 Colors (+40%)</option>
+                        <option value="three">3 Colors (+60%)</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; color: white; font-size: 18px; margin-top: 15px;">
+                    <label><input type="checkbox" id="c-feat-swap" style="transform: scale(1.2);"> Swaps (+50%)</label>
+                    <label><input type="checkbox" id="c-feat-neg" style="transform: scale(1.2);"> Negatives (+40%)</label>
+                    <label><input type="checkbox" id="c-feat-calc" style="transform: scale(1.2);"> Calc Assist (-80%)</label>
+                </div>
+                
+                <div style="display: flex; gap: 15px; justify-content: center; margin-top: 25px;">
+                    <button id="btn-play-custom" class="diff-btn" style="border-color: #00ff00; color: #00ff00;">Play Custom</button>
+                    <button id="btn-close-custom" class="diff-btn">Back</button>
+                </div>
+            </div>
+
+            <div style="background: #111; border: 2px solid #ff00ff; padding: 25px; border-radius: 15px; flex: 1; max-width: 350px; text-align: left; box-shadow: 0 0 20px rgba(255, 0, 255, 0.2); pointer-events: auto; display: flex; flex-direction: column; max-height: 80vh; overflow-y: auto;">
+                <h3 style="margin-top: 0; margin-bottom: 20px; color: #ff00ff; font-size: 26px; text-align: center; border-bottom: 1px solid #ff00ff; padding-bottom: 10px;">GLOBAL TOP 10</h3>
+                <div id="persistent-leaderboard" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Leaderboard entries injected dynamically via Firebase -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="{{ url_for('static', filename='game.js') }}"></script>
+</body>
+</html>
