@@ -5,10 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NeuroStrike</title>
 <link rel="stylesheet" href="style.css">
+<style>
+    .calc-btn {
+        background: #222; color: white; border: 1px solid #00ffff; border-radius: 5px; 
+        font-size: 20px; font-weight: bold; padding: 12px 0; cursor: pointer; transition: 0.1s;
+    }
+    .calc-btn:hover { background: #00ffff; color: black; }
+    .calc-btn:active { transform: scale(0.95); }
+    .calc-op { background: #1a3344; color: #00ffff; }
+</style>
 </head>
 <body>
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
+    
+    <div id="calculator-widget" style="display: none; position: absolute; bottom: 20px; right: 20px; background: rgba(15, 15, 25, 0.95); border: 2px solid #00ffff; border-radius: 12px; padding: 15px; z-index: 100; box-shadow: 0 0 20px rgba(0,255,255,0.2); pointer-events: auto;">
+        <div id="calc-display" style="background: #000; color: #00ffff; font-family: monospace; font-size: 26px; text-align: right; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #444; overflow: hidden; width: 220px; box-sizing: border-box;">0</div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 220px;">
+            <button class="calc-btn" onclick="inputCalcDigit(7)">7</button>
+            <button class="calc-btn" onclick="inputCalcDigit(8)">8</button>
+            <button class="calc-btn" onclick="inputCalcDigit(9)">9</button>
+            <button class="calc-btn calc-op" onclick="inputCalcOperator('/')">÷</button>
+            
+            <button class="calc-btn" onclick="inputCalcDigit(4)">4</button>
+            <button class="calc-btn" onclick="inputCalcDigit(5)">5</button>
+            <button class="calc-btn" onclick="inputCalcDigit(6)">6</button>
+            <button class="calc-btn calc-op" onclick="inputCalcOperator('*')">×</button>
+            
+            <button class="calc-btn" onclick="inputCalcDigit(1)">1</button>
+            <button class="calc-btn" onclick="inputCalcDigit(2)">2</button>
+            <button class="calc-btn" onclick="inputCalcDigit(3)">3</button>
+            <button class="calc-btn calc-op" onclick="inputCalcOperator('-')">−</button>
+            
+            <button class="calc-btn" style="grid-column: span 2;" onclick="inputCalcDigit(0)">0</button>
+            <button class="calc-btn calc-op" onclick="inputCalcOperator('+')">+</button>
+            <button class="calc-btn calc-op" style="background: #00ffff; color: black;" onclick="calculateResult()">=</button>
+            
+            <button class="calc-btn" style="grid-column: span 4; background: #311; border-color: #f00; color: #f55;" onclick="clearCalc()">CLEAR (C)</button>
+        </div>
+    </div>
     
     <div id="profile-widget" style="position: absolute; top: 15px; right: 15px; z-index: 150; display: flex; align-items: center; gap: 10px; pointer-events: auto;">
         <button id="btn-google-login" class="diff-btn" style="padding: 8px 16px; font-size: 14px; border-color: #4285F4; color: #4285F4; display: none;">Login with Google</button>
@@ -135,7 +170,7 @@
                 <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; color: white; font-size: 18px; margin-top: 15px;">
                     <label><input type="checkbox" id="c-feat-swap" style="transform: scale(1.2);"> Swaps (+50%)</label>
                     <label><input type="checkbox" id="c-feat-neg" style="transform: scale(1.2);"> Negatives (+40%)</label>
-                    <label><input type="checkbox" id="c-feat-calc" style="transform: scale(1.2);"> Calc Assist (-80%)</label>
+                    <label><input type="checkbox" id="c-feat-calc" style="transform: scale(1.2);"> Calc Widget (-80%)</label>
                 </div>
                 
                 <div style="display: flex; gap: 15px; justify-content: center; margin-top: 25px;">

@@ -4,15 +4,15 @@ import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, limit
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'neurostrike';
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// BE SURE YOUR ACTIVE API KEY IS HERE
 const firebaseConfig = {
-  apiKey: "AIzaSyBlx-eaaSLRvbzdk3-ui7iPvFO_6VS_Jno",
+  apiKey: "AIzaSyBlr-ezU5LMwbcdk0-uIpHPO_6VS_JHo",
   authDomain: "neurostrike-7bce9.firebaseapp.com",
   projectId: "neurostrike-7bce9",
   storageBucket: "neurostrike-7bce9.firebasestorage.app",
-  messagingSenderId: "674741069536",
-  appId: "1:674741069536:web:119fe721865c709b721285",
-  measurementId: "G-FN6DZX1T76"
+  messagingSenderId: "674741069586",
+  appId: "1:674741069586:web:119fc7218d5c789c72120b",
+  measurementId: "G-FNB8ZXK176"
 };
 
 let app, db, auth, googleProvider;
@@ -47,6 +47,63 @@ let customCalc = false;
 let customMaxScore = 0;
 let answerTime = 0;
 
+// Calculator State
+let calcDisplay = '0';
+let calcOperand = null;
+let calcOperator = null;
+let calcWaitingForNew = false;
+
+window.updateCalcDisplay = function() {
+    let el = document.getElementById('calc-display');
+    if (el) el.innerText = calcDisplay;
+}
+window.inputCalcDigit = function(digit) {
+    if (calcWaitingForNew) {
+        calcDisplay = String(digit);
+        calcWaitingForNew = false;
+    } else {
+        calcDisplay = calcDisplay === '0' ? String(digit) : calcDisplay + digit;
+    }
+    window.updateCalcDisplay();
+}
+window.inputCalcOperator = function(op) {
+    let val = parseFloat(calcDisplay);
+    if (calcOperator && !calcWaitingForNew) {
+        let res = 0;
+        if (calcOperator === '+') res = calcOperand + val;
+        if (calcOperator === '-') res = calcOperand - val;
+        if (calcOperator === '*') res = calcOperand * val;
+        if (calcOperator === '/') res = calcOperand / val;
+        calcDisplay = String(res);
+        calcOperand = res;
+    } else {
+        calcOperand = val;
+    }
+    calcOperator = op;
+    calcWaitingForNew = true;
+    window.updateCalcDisplay();
+}
+window.calculateResult = function() {
+    if (!calcOperator) return;
+    let val = parseFloat(calcDisplay);
+    let res = 0;
+    if (calcOperator === '+') res = calcOperand + val;
+    if (calcOperator === '-') res = calcOperand - val;
+    if (calcOperator === '*') res = calcOperand * val;
+    if (calcOperator === '/') res = calcOperand / val;
+    calcDisplay = String(res);
+    calcOperator = null;
+    calcWaitingForNew = true;
+    window.updateCalcDisplay();
+}
+window.clearCalc = function() {
+    calcDisplay = '0';
+    calcOperand = null;
+    calcOperator = null;
+    calcWaitingForNew = false;
+    window.updateCalcDisplay();
+}
+
 try {
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
@@ -70,7 +127,6 @@ try {
             
             document.getElementById('account-name-input').value = playerName;
             
-            // Only populate URL input if it's not a massive base64 string
             if(!playerPfp.startsWith('data:image')) {
                 document.getElementById('account-pfp-input').value = user.photoURL || "";
             }
@@ -130,7 +186,6 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
     }
 });
 
-// LOG OUT LOGIC
 document.getElementById('btn-logout').addEventListener('click', () => {
     if (auth) {
         auth.signOut().then(() => {
@@ -149,7 +204,6 @@ document.getElementById('btn-cancel-account').addEventListener('click', function
     showLayer('ui-layer');
 });
 
-// FILE UPLOAD AND CROP LOGIC
 document.getElementById('btn-upload-trigger').addEventListener('click', () => {
     document.getElementById('pfp-upload').click();
 });
@@ -157,11 +211,7 @@ document.getElementById('btn-upload-trigger').addEventListener('click', () => {
 document.getElementById('pfp-upload').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
-    
-    if (file.size > 2 * 1024 * 1024) { 
-        showPopup("File too large! Must be under 2MB."); 
-        return; 
-    }
+    if (file.size > 2 * 1024 * 1024) { showPopup("File too large! Must be under 2MB."); return; }
     
     const reader = new FileReader();
     reader.onload = function(event) {
@@ -169,8 +219,6 @@ document.getElementById('pfp-upload').addEventListener('change', function(e) {
         img.onload = function() {
             const pfpCanvas = document.getElementById('pfp-preview');
             const pCtx = pfpCanvas.getContext('2d');
-            
-            // Crop perfect square from center
             const size = Math.min(img.width, img.height);
             const sx = (img.width - size) / 2;
             const sy = (img.height - size) / 2;
@@ -178,7 +226,6 @@ document.getElementById('pfp-upload').addEventListener('change', function(e) {
             pCtx.clearRect(0, 0, 80, 80);
             pCtx.drawImage(img, sx, sy, size, size, 0, 0, 80, 80);
             
-            // Convert to tiny text string (Base64) to save directly to DB
             const dataUrl = pfpCanvas.toDataURL('image/jpeg', 0.8);
             document.getElementById('account-pfp-input').value = dataUrl;
             pfpCanvas.style.display = 'block';
@@ -188,17 +235,14 @@ document.getElementById('pfp-upload').addEventListener('change', function(e) {
     reader.readAsDataURL(file);
 });
 
-// SAVING PROFILE AND NAME UNIQUENESS
 document.getElementById('btn-save-account').addEventListener('click', async function() {
     let newName = document.getElementById('account-name-input').value.trim();
     let newPfp = document.getElementById('account-pfp-input').value.trim();
     
     if (newName.length > 0 && currentUser) {
         try {
-            // Check if name is taken
             const lbSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'leaderboards'));
             let nameTaken = false;
-            
             lbSnap.forEach(d => {
                 let data = d.data();
                 if (data.name && data.name.toLowerCase() === newName.toLowerCase() && d.id !== currentUser.uid) {
@@ -214,7 +258,6 @@ document.getElementById('btn-save-account').addEventListener('click', async func
             playerName = newName;
             playerPfp = newPfp || `https://placehold.co/45x45/222222/00ffff?text=${playerName.charAt(0).toUpperCase()}`;
             
-            // Firebase Auth rejects very long base64 strings in the profile URL, so skip writing it there if it's base64
             if (!newPfp.startsWith('data:image')) {
                 await updateProfile(currentUser, { displayName: playerName, photoURL: newPfp }).catch(e => console.log(e));
             } else {
@@ -224,7 +267,6 @@ document.getElementById('btn-save-account').addEventListener('click', async func
             document.getElementById('display-name-text').innerText = playerName;
             document.getElementById('display-pfp-img').src = playerPfp;
             
-            // Save the base64 or URL safely to leaderboard database
             const scoreDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboards', currentUser.uid);
             const snap = await getDoc(scoreDocRef);
             if(snap.exists()) {
@@ -277,18 +319,13 @@ function showPopup(msg) {
     toast.innerText = msg;
     pLayer.appendChild(toast);
     
-    if (popupTimer !== null) {
-        clearTimeout(popupTimer);
-    }
-    
+    if (popupTimer !== null) clearTimeout(popupTimer);
     popupTimer = setTimeout(function() {
         let toasts = document.querySelectorAll('.toast-popup');
         for (let i = 0; i < toasts.length; i = i + 1) {
             toasts[i].style.opacity = '0';
         }
-        setTimeout(function() {
-            pLayer.innerHTML = '';
-        }, 500);
+        setTimeout(function() { pLayer.innerHTML = ''; }, 500);
     }, 2500);
 }
 
@@ -308,12 +345,10 @@ function updatePersistentLeaderboard() {
     
     let htmlStr = "";
     let displayCount = Math.min(10, globalLeaderboard.length);
-    
     if (displayCount === 0) {
-        lbContainer.innerHTML = "<div style='color: #888; text-align: center;'>No scores yet. Be the first!</div>";
+        lbContainer.innerHTML = "<div style='color: #888; text-align: center;'>Processing...</div>";
         return;
     }
-    
     for (let j = 0; j < displayCount; j = j + 1) {
         let entry = globalLeaderboard[j];
         let isUser = currentUser && entry.uid === currentUser.uid;
@@ -421,9 +456,7 @@ function updateCustomScore() {
     
     if (document.getElementById('c-feat-swap').checked) { multi = multi + 0.6; }
     if (document.getElementById('c-feat-neg').checked) { multi = multi + 0.5; }
-    
     if (document.getElementById('c-feat-calc').checked) { multi = multi * 0.1; }
-    
     if (multi < 0.1) { multi = 0.1; }
     
     customMaxScore = Math.floor(base * multi);
@@ -508,7 +541,6 @@ for (let i = 0; i < subBtns.length; i = i + 1) {
     subBtns[i].addEventListener('click', function(e) {
         let btnText = e.target.innerText;
         let base = getDifficultyBaseOffset();
-        
         if (btnText === "Level 1") {
             if (highestUnlocked < base + 1) { showPopup("Locked!"); return; }
             currentLevel = base + 1;
@@ -521,7 +553,6 @@ for (let i = 0; i < subBtns.length; i = i + 1) {
         }
         
         totalToSpawn = 3 + Math.floor(currentLevel * 0.8);
-        
         if (currentLevel === base + 1 && highestUnlocked === base + 1) {
             showTutorial(currentDifficulty, false);
         } else {
@@ -533,30 +564,45 @@ for (let i = 0; i < subBtns.length; i = i + 1) {
 
 function startPlaying() {
     gameState = 'playing';
-    menuNumbers = []; // Memory flush
+    menuNumbers = [];
     playNumbers = [];
     runningTotal1 = 0;
     runningTotal2 = 0;
     runningTotal3 = 0;
     spawnedCount = 0;
     initialKeyPress = '';
+    window.clearCalc();
 }
 
 window.addEventListener('keydown', function(e) {
-    if (gameState === 'answered' && e.key === 'Enter') {
-        if (Date.now() - answerTime < 300) { return; } 
-        
-        if (document.getElementById('next-btn')) { document.getElementById('next-btn').click(); }
-        else if (document.getElementById('retry-btn')) { document.getElementById('retry-btn').click(); }
-        else if (document.getElementById('menu-btn')) { document.getElementById('menu-btn').click(); }
+    if (gameState === 'menu' && document.getElementById('custom-layer').style.display === 'flex' && e.key === 'Enter') {
+        document.getElementById('btn-play-custom').click();
     }
     
-    if (gameState === 'playing' && spawnedCount >= totalToSpawn) {
-        if ((e.key >= '0' && e.key <= '9') || e.key === '-' || e.key === 'Enter') {
-            if (e.key !== 'Enter') {
-                initialKeyPress = e.key;
+    if (gameState === 'answered' && e.key === 'Enter') {
+        if (Date.now() - answerTime < 300) { return; } 
+        if (currentDifficulty === 'Custom' && document.getElementById('custom-menu-btn')) {
+            document.getElementById('custom-menu-btn').click();
+        } else {
+            if (document.getElementById('next-btn')) { document.getElementById('next-btn').click(); }
+            else if (document.getElementById('retry-btn')) { document.getElementById('retry-btn').click(); }
+            else if (document.getElementById('menu-btn')) { document.getElementById('menu-btn').click(); }
+        }
+    }
+    
+    if (gameState === 'playing') {
+        if (spawnedCount >= totalToSpawn) {
+            if ((e.key >= '0' && e.key <= '9') || e.key === '-' || e.key === 'Enter') {
+                if (e.key !== 'Enter') { initialKeyPress = e.key; }
+                playNumbers = [];
             }
-            playNumbers = [];
+        }
+        
+        if (document.getElementById('calculator-widget').style.display === 'block') {
+            if (e.key >= '0' && e.key <= '9') window.inputCalcDigit(e.key);
+            if (e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/') window.inputCalcOperator(e.key);
+            if (e.key === 'Enter' || e.key === '=') window.calculateResult();
+            if (e.key === 'Escape' || e.key === 'c' || e.key === 'C' || e.key === 'Backspace') window.clearCalc();
         }
     }
 });
@@ -596,17 +642,17 @@ class MenuNumber {
         let dy = mouseY - this.y;
         let dist = Math.sqrt(dx * dx + dy * dy);
         
-  if (dist < 400 && gameState === 'menu') {
-      let intensity = 1 - (dist / 400);
-      let r = Math.floor(this.baseR + (255 - this.baseR) * intensity);
-      let g = Math.floor(this.baseG + (215 - this.baseG) * intensity);
-      let b = Math.floor(this.baseB + (0 - this.baseB) * intensity);
-      this.opacity = this.baseOpacity + (1 - this.baseOpacity) * intensity;
-      this.color = 'rgba(' + r + ',' + g + ',' + b + ',' + this.opacity + ')';
-  } else {
-      this.opacity = this.baseOpacity;
-      this.color = 'rgba(' + this.baseR + ',' + this.baseG + ',' + this.baseB + ',' + this.opacity + ')';
-  }
+        if (dist < 400 && gameState === 'menu') {
+            let intensity = 1 - (dist / 400);
+            let r = Math.floor(this.baseR + (255 - this.baseR) * intensity);
+            let g = Math.floor(this.baseG + (215 - this.baseG) * intensity);
+            let b = Math.floor(this.baseB + (0 - this.baseB) * intensity);
+            this.opacity = this.baseOpacity + (1 - this.baseOpacity) * intensity;
+            this.color = 'rgba(' + r + ',' + g + ',' + b + ',' + this.opacity + ')';
+        } else {
+            this.opacity = this.baseOpacity;
+            this.color = 'rgba(' + this.baseR + ',' + this.baseG + ',' + this.baseB + ',' + this.opacity + ')';
+        }
     }
     draw() {
         ctx.fillStyle = this.color;
@@ -616,24 +662,12 @@ class MenuNumber {
 }
 
 class PlayNumber {
-    constructor() {
-        this.value = Math.floor(Math.random() * 9) + 1;
-        this.size = Math.random() * 80 + 120; 
-        
-   let edge = Math.floor(Math.random() * 4);
-        if (edge === 0) {
-            this.x = -250;
-            this.y = Math.random() * canvas.height;
-        } else if (edge === 1) {
-            this.x = Math.random() * canvas.width;
-            this.y = -250;
-        } else if (edge === 2) {
-            this.x = canvas.width + 250;
-            this.y = Math.random() * canvas.height;
-        } else {
-            this.x = Math.random() * canvas.width;
-            this.y = canvas.height + 250;
-        }
+    constructor(isDecoy = false) {
+        let edge = Math.floor(Math.random() * 4);
+        if (edge === 0) { this.x = -250; this.y = Math.random() * canvas.height; } 
+        else if (edge === 1) { this.x = Math.random() * canvas.width; this.y = -250; } 
+        else if (edge === 2) { this.x = canvas.width + 250; this.y = Math.random() * canvas.height; } 
+        else { this.x = Math.random() * canvas.width; this.y = canvas.height + 250; }
         
         let targetX = canvas.width / 2 + (Math.random() * 100 - 50);
         let targetY = canvas.height / 2 + (Math.random() * 100 - 50);
@@ -641,67 +675,72 @@ class PlayNumber {
         let dy = targetY - this.y;
         let angle = Math.atan2(dy, dx);
         
-        let spdScale = 1.0;
-        if (currentLevel === 999) {
-            spdScale = 0.5 + (customSpeedMultiplier * 0.2);
-        } else {
-            spdScale = 0.5 + (currentLevel * 0.15);
+        this.isNegative = false;
+        this.hasSwitched = false;
+        this.value = Math.floor(Math.random() * 9) + 1;
+        
+        let spdScale = (currentLevel === 999) ? (0.5 + customSpeedMultiplier * 0.2) : (0.5 + currentLevel * 0.15);
+        let speed = (Math.random() * 4 + 3) * spdScale;
+        this.size = Math.random() * 80 + 120; 
+        
+        // DECOY OVERRIDE - Crazy speed, random sizes, pure distraction
+        if (isDecoy) {
+            this.type = 0;
+            this.color = (Math.random() > 0.5) ? '#ff0000' : '#ff4444'; 
+            this.size = Math.random() * 120 + 60;
+            speed = speed * (Math.random() * 1.5 + 0.8);
+            this.vx = Math.cos(angle) * speed;
+            this.vy = Math.sin(angle) * speed;
+            
+            if (currentLevel === 999) {
+                if (customDigits === 2) { this.value = Math.floor(Math.random() * 90) + 10; }
+                if (customDigits === 3) { this.value = Math.floor(Math.random() * 900) + 100; }
+                if (customNeg && Math.random() > 0.5) { this.isNegative = true; }
+            }
+            return; // EXIT EARLY: Decoys do not touch running totals
         }
         
-        let speed = (Math.random() * 4 + 3) * spdScale;
         this.vx = Math.cos(angle) * speed;
         this.vy = Math.sin(angle) * speed;
         
-        this.isNegative = false;
-        this.type = 0; 
-        this.color = 'white';
-        this.hasSwitched = false;
-        
+        // REAL NUMBERS
         if (currentLevel === 999) {
-            if (customDigits === 1) { this.value = Math.floor(Math.random() * 9) + 1; }
             if (customDigits === 2) { this.value = Math.floor(Math.random() * 90) + 10; }
             if (customDigits === 3) { this.value = Math.floor(Math.random() * 900) + 100; }
             if (customNeg && Math.random() > 0.5) { this.isNegative = true; }
             
-            if (customColorMode === 'one') {
-                this.color = 'white'; this.type = 1;
-            } else if (customColorMode === 'decoys') {
-                if (Math.random() > 0.5) { this.color = '#00ff00'; this.type = 1; } else { this.color = '#ff0000'; this.type = 0; }
+            if (customColorMode === 'one' || customColorMode === 'decoys') {
+                this.color = customColorMode === 'one' ? 'white' : '#00ff00';
+                this.type = 1;
             } else if (customColorMode === 'two') {
                 let r = Math.random();
-                if (r < 0.4) { this.color = '#00ff00'; this.type = 1; }
-                else if (r < 0.8) { this.color = '#00ffff'; this.type = 2; }
-                else { this.color = '#ff0000'; this.type = 0; }
+                if (r < 0.5) { this.color = '#00ff00'; this.type = 1; }
+                else { this.color = '#00ffff'; this.type = 2; }
             } else if (customColorMode === 'three') {
                 let r = Math.random();
-                if (r < 0.3) { this.color = '#00ff00'; this.type = 1; }
-                else if (r < 0.6) { this.color = '#00ffff'; this.type = 2; }
-                else if (r < 0.9) { this.color = '#ff00ff'; this.type = 3; }
-                else { this.color = '#ff0000'; this.type = 0; }
+                if (r < 0.33) { this.color = '#00ff00'; this.type = 1; }
+                else if (r < 0.66) { this.color = '#00ffff'; this.type = 2; }
+                else { this.color = '#ff00ff'; this.type = 3; }
             }
         } else if (currentDifficulty === 'Easy') {
-            this.color = 'white';
-            this.type = 1;
+            this.color = 'white'; this.type = 1;
         } else if (currentDifficulty === 'Medium') {
-            if (Math.random() > 0.5) { this.color = '#00ff00'; this.type = 1; } else { this.color = '#ff0000'; this.type = 0; }
+            this.color = '#00ff00'; this.type = 1;
         } else if (currentDifficulty === 'Hard' || currentDifficulty === 'Extreme') {
+            if (Math.random() < 0.5) { this.color = '#00ff00'; this.type = 1; }
+            else { this.color = '#00ffff'; this.type = 2; }
+        } else if (currentDifficulty === 'Impossible') {
             let r = Math.random();
             if (r < 0.33) { this.color = '#00ff00'; this.type = 1; }
             else if (r < 0.66) { this.color = '#00ffff'; this.type = 2; }
-            else { this.color = '#ff0000'; this.type = 0; }
-        } else if (currentDifficulty === 'Impossible') {
-            let r = Math.random();
-            if (r < 0.25) { this.color = '#00ff00'; this.type = 1; }
-            else if (r < 0.5) { this.color = '#00ffff'; this.type = 2; }
-            else if (r < 0.75) { this.color = '#ff00ff'; this.type = 3; }
-            else { this.color = '#ff0000'; this.type = 0; }
+            else { this.color = '#ff00ff'; this.type = 3; }
             if (Math.random() > 0.6) { this.isNegative = true; }
         }
         
         let mathVal = this.isNegative ? -this.value : this.value;
-        if (this.type === 1) { runningTotal1 = runningTotal1 + mathVal; }
-        if (this.type === 2) { runningTotal2 = runningTotal2 + mathVal; }
-        if (this.type === 3) { runningTotal3 = runningTotal3 + mathVal; }
+        if (this.type === 1) { runningTotal1 += mathVal; }
+        if (this.type === 2) { runningTotal2 += mathVal; }
+        if (this.type === 3) { runningTotal3 += mathVal; }
     }
     
     update() {
@@ -712,16 +751,17 @@ class PlayNumber {
          if (currentLevel === 999 && customSwap) { canSwitch = true; }
          if (currentDifficulty === 'Extreme' || currentDifficulty === 'Impossible') { canSwitch = true; }
          
-         if (canSwitch && !this.hasSwitched) {
+         // Only swap REAL numbers
+         if (canSwitch && !this.hasSwitched && this.type !== 0) {
              let dx = this.x - canvas.width/2;
              let dy = this.y - canvas.height/2;
              if (Math.sqrt(dx*dx + dy*dy) < 120) {
                  this.hasSwitched = true;
-                 if (Math.random() > 0.5 && this.type !== 0) {
+                 if (Math.random() > 0.5) {
                      let mathVal = this.isNegative ? -this.value : this.value;
-                     if (this.type === 1) { runningTotal1 = runningTotal1 - mathVal; }
-                     if (this.type === 2) { runningTotal2 = runningTotal2 - mathVal; }
-                     if (this.type === 3) { runningTotal3 = runningTotal3 - mathVal; }
+                     if (this.type === 1) { runningTotal1 -= mathVal; }
+                     if (this.type === 2) { runningTotal2 -= mathVal; }
+                     if (this.type === 3) { runningTotal3 -= mathVal; }
                      
                      let r2 = Math.random();
                      if (currentLevel === 999) {
@@ -742,9 +782,9 @@ class PlayNumber {
                          else { this.color = '#ff00ff'; this.type = 3; }
                      }
                      
-                     if (this.type === 1) { runningTotal1 = runningTotal1 + mathVal; }
-                     if (this.type === 2) { runningTotal2 = runningTotal2 + mathVal; }
-                     if (this.type === 3) { runningTotal3 = runningTotal3 + mathVal; }
+                     if (this.type === 1) { runningTotal1 += mathVal; }
+                     if (this.type === 2) { runningTotal2 += mathVal; }
+                     if (this.type === 3) { runningTotal3 += mathVal; }
                  }
              }
          }
@@ -771,10 +811,8 @@ function gameLoop() {
     drawBackground();
     
     if (gameState === 'menu') {
-        if (frameCount % 3 === 0) {
-            let newNum = new MenuNumber();
-            menuNumbers.push(newNum);
-        }
+        document.getElementById('calculator-widget').style.display = 'none';
+        if (frameCount % 3 === 0) { menuNumbers.push(new MenuNumber()); }
         for (let i = 0; i < menuNumbers.length; i = i + 1) {
             menuNumbers[i].update();
             menuNumbers[i].draw();
@@ -782,16 +820,11 @@ function gameLoop() {
         menuNumbers = menuNumbers.filter(num => num.x < canvas.width + 150);
         
     } else if (gameState === 'playing') {
+        
         if (currentLevel === 999 && customCalc) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.font = 'bold 30px Arial';
-            if (customColorMode === 'one' || customColorMode === 'decoys') {
-                ctx.fillText('Current: ' + runningTotal1, 20, 50);
-            } else if (customColorMode === 'two') {
-                ctx.fillText('Grn: ' + runningTotal1 + ' | Cy: ' + runningTotal2, 20, 50);
-            } else if (customColorMode === 'three') {
-                ctx.fillText('Grn: ' + runningTotal1 + ' | Cy: ' + runningTotal2 + ' | Pk: ' + runningTotal3, 20, 50);
-            }
+            document.getElementById('calculator-widget').style.display = 'block';
+        } else {
+            document.getElementById('calculator-widget').style.display = 'none';
         }
         
         let spawnRate = 75;
@@ -801,16 +834,30 @@ function gameLoop() {
         }
         
         if (spawnedCount < totalToSpawn) {
+            // Spawn Real Numbers
             if (frameCount % spawnRate === 0) {
-                let pNum = new PlayNumber();
-                playNumbers.push(pNum);
-                spawnedCount = spawnedCount + 1;
+                playNumbers.push(new PlayNumber(false));
+                spawnedCount++;
             }
+            
+            // Randomly Spawn Decoys (Does not count against spawnedCount)
+            let spawnDecoy = false;
+            if (currentLevel === 999) {
+                if (customColorMode !== 'one' && Math.random() < (0.025 * customSpeedMultiplier)) { spawnDecoy = true; }
+            } else if (currentDifficulty === 'Easy') {
+                if (Math.random() < 0.01) { spawnDecoy = true; }
+            } else {
+                if (Math.random() < 0.02) { spawnDecoy = true; }
+            }
+            
+            if (spawnDecoy) playNumbers.push(new PlayNumber(true));
+            
         } else {
             document.getElementById('skip-layer').style.display = 'flex';
             if (playNumbers.length === 0) {
                 gameState = 'answering';
                 document.getElementById('skip-layer').style.display = 'none';
+                document.getElementById('calculator-widget').style.display = 'none';
                 showLayer('answer-layer');
                 resetAnswerLayer();
             }
@@ -820,7 +867,6 @@ function gameLoop() {
         for (let i = 0; i < playNumbers.length; i = i + 1) {
             playNumbers[i].update();
             playNumbers[i].draw();
-            
             if (playNumbers[i].x > -400 && playNumbers[i].x < canvas.width + 400 && playNumbers[i].y > -400 && playNumbers[i].y < canvas.height + 400) {
                 nextPlayNumbers.push(playNumbers[i]);
             }
@@ -856,7 +902,7 @@ function resetAnswerLayer() {
         if (needs3) { htmlStr = htmlStr + "<input type='number' id='ans3' class='ans-box' placeholder='Pink' style='border-color: #ff00ff;'>"; }
     }
     
-    htmlStr = htmlStr + "</div><button id='submit-btn' class='diff-btn'>Submit</button>";
+    htmlStr = htmlStr + "</div><div style='display: flex; gap: 10px;'><button id='submit-btn' class='diff-btn'>Submit</button></div>";
     ansLayer.innerHTML = htmlStr;
     
     document.getElementById('submit-btn').addEventListener('click', checkAnswer);
@@ -899,22 +945,27 @@ async function checkAnswer() {
         let diff2 = (customColorMode === 'two' || customColorMode === 'three') ? Math.abs(v2 - runningTotal2) : 0;
         let diff3 = customColorMode === 'three' ? Math.abs(v3 - runningTotal3) : 0;
         
-        let maxValPerNum = Math.pow(10, customDigits) - 1;
-        let expectedMaxDiff = (totalToSpawn / 2) * maxValPerNum; 
-        if(expectedMaxDiff < 10) expectedMaxDiff = 10;
-        
         let totalDiff = diff1 + diff2 + diff3;
         
-        let penaltyFactor = totalDiff / expectedMaxDiff;
-        let earned = Math.floor(customMaxScore * Math.max(0, (1 - penaltyFactor*2))); 
-        
-        if (totalDiff === 0) earned = customMaxScore;
+        let earned = 0;
+        if (totalDiff === 0) { earned = customMaxScore; }
+        else if (totalDiff === 1) { earned = Math.floor(customMaxScore / 2); }
+        else if (totalDiff === 2) { earned = Math.floor(customMaxScore / 4); }
+        else { earned = 0; }
 
         let htmlStr = "<h2 style='color: #00ffff; text-shadow: 0 0 10px #00ffff; margin-bottom: 5px;'>CUSTOM RESULT</h2>";
-        if (totalDiff === 0) { htmlStr = htmlStr + "<h3 style='color: #00ff00; margin-top: 0;'>Perfect!</h3>"; }
-        else { htmlStr = htmlStr + "<h3 style='color: #ffaa00; margin-top: 0;'>Off by " + totalDiff + "</h3>"; }
+        if (totalDiff === 0) { 
+            htmlStr += "<h3 style='color: #00ff00; margin-top: 0;'>Perfect!</h3>"; 
+        } else { 
+            htmlStr += "<h3 style='color: #ffaa00; margin-top: 0;'>Off by " + totalDiff + "</h3>"; 
+            
+            let correctText = "Correct: " + runningTotal1;
+            if (customColorMode === 'two') correctText = "Correct -> Grn: " + runningTotal1 + " | Cy: " + runningTotal2;
+            if (customColorMode === 'three') correctText = "Correct -> Grn: " + runningTotal1 + " | Cy: " + runningTotal2 + " | Pk: " + runningTotal3;
+            htmlStr += "<p style='color: #aaa; margin-top: 0; margin-bottom: 15px; font-size: 18px;'>" + correctText + "</p>";
+        }
         
-        htmlStr = htmlStr + "<p style='color: white; font-size: 24px; margin-top: 0;'>Points Earned: " + earned + " / " + customMaxScore + "</p>";
+        htmlStr += "<p style='color: white; font-size: 24px; margin-top: 0;'>Points Earned: " + earned + " / " + customMaxScore + "</p>";
         
         // Push High Score to Database
         if (currentUser && earned > 0 && db) {
@@ -929,8 +980,8 @@ async function checkAnswer() {
         let userRank = globalLeaderboard.findIndex(entry => entry.uid === (currentUser ? currentUser.uid : null)) + 1;
         if (userRank === 0) userRank = "N/A";
 
-        htmlStr = htmlStr + "<div style='background: #111; padding: 20px 40px; border: 2px solid #ff00ff; border-radius: 10px; margin-bottom: 15px; width: 450px;'>";
-        htmlStr = htmlStr + "<h3 style='margin-top: 0; margin-bottom: 15px; color: #ff00ff; font-size: 24px; text-align: center;'>TRIAL LEADERBOARD</h3>";
+        htmlStr += "<div style='background: #111; padding: 20px 40px; border: 2px solid #ff00ff; border-radius: 10px; margin-bottom: 15px; width: 450px;'>";
+        htmlStr += "<h3 style='margin-top: 0; margin-bottom: 15px; color: #ff00ff; font-size: 24px; text-align: center;'>TRIAL LEADERBOARD</h3>";
         
         let displayCount = Math.min(10, globalLeaderboard.length);
         let userInTop10 = false;
@@ -956,7 +1007,7 @@ async function checkAnswer() {
             htmlStr += "<span>" + entry.score + "</span>";
             htmlStr += "</div>";
         }
-        htmlStr = htmlStr + "</div>";
+        htmlStr += "</div>";
         
         if (!userInTop10 && userRank !== "N/A") {
              htmlStr += "<div style='color: #00ff00; font-weight: bold; font-size: 22px; margin-bottom: 25px; text-shadow: 0 0 5px #00ff00;'>Your Rank: #" + userRank + "</div>";
@@ -964,8 +1015,19 @@ async function checkAnswer() {
              htmlStr += "<div style='height: 25px; margin-bottom: 25px;'></div>";
         }
         
-        htmlStr = htmlStr + "<div style='display: flex; gap: 15px;'><button id='menu-btn' class='diff-btn'>Main Menu</button></div>";
+        // NEW CUSTOM BUTTONS
+        htmlStr += "<div style='display: flex; gap: 15px;'>";
+        htmlStr += "<button id='retry-custom-btn' class='diff-btn'>Try Again</button>";
+        htmlStr += "<button id='custom-menu-btn' class='diff-btn'>Custom Menu</button>";
+        htmlStr += "<button id='menu-btn' class='diff-btn'>Main Menu</button></div>";
         ansLayer.innerHTML = htmlStr;
+        
+        document.getElementById('retry-custom-btn').addEventListener('click', function() {
+            showLayer(''); startPlaying();
+        });
+        document.getElementById('custom-menu-btn').addEventListener('click', function() {
+            showLayer('custom-layer'); gameState = 'menu';
+        });
         
     } else {
         let isCorrect = false;
@@ -991,7 +1053,6 @@ async function checkAnswer() {
                 }
                 updateMainMenuButtons();
                 
-                // Save Progress to Cloud
                 if (currentUser && db) {
                     const progRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'data');
                     setDoc(progRef, { highestUnlocked: highestUnlocked }, { merge: true });
@@ -999,18 +1060,16 @@ async function checkAnswer() {
             }
             
             let htmlStr = "<h2 style='color: #00ff00; text-shadow: 0 0 10px #00ff00;'>CORRECT!</h2>";
-            htmlStr = htmlStr + "<p style='color: white; font-size: 24px;'>" + correctText + "</p>";
-            htmlStr = htmlStr + "<div style='display: flex; gap: 15px; margin-top: 20px;'>";
-            if (currentLevel % 3 !== 0) {
-                htmlStr = htmlStr + "<button id='next-btn' class='diff-btn'>Next Level</button>";
-            }
-            htmlStr = htmlStr + "<button id='menu-btn' class='diff-btn'>Main Menu</button></div>";
+            htmlStr += "<p style='color: white; font-size: 24px;'>" + correctText + "</p>";
+            htmlStr += "<div style='display: flex; gap: 15px; margin-top: 20px;'>";
+            if (currentLevel % 3 !== 0) { htmlStr += "<button id='next-btn' class='diff-btn'>Next Level</button>"; }
+            htmlStr += "<button id='menu-btn' class='diff-btn'>Main Menu</button></div>";
             ansLayer.innerHTML = htmlStr;
         } else {
             let htmlStr = "<h2 style='color: #ff0000; text-shadow: 0 0 10px #ff0000;'>INCORRECT!</h2>";
-            htmlStr = htmlStr + "<p style='color: white; font-size: 24px;'>" + correctText + "</p>";
-            htmlStr = htmlStr + "<div style='display: flex; gap: 15px; margin-top: 20px;'><button id='retry-btn' class='diff-btn'>Try Again</button>";
-            htmlStr = htmlStr + "<button id='menu-btn' class='diff-btn'>Main Menu</button></div>";
+            htmlStr += "<p style='color: white; font-size: 24px;'>" + correctText + "</p>";
+            htmlStr += "<div style='display: flex; gap: 15px; margin-top: 20px;'><button id='retry-btn' class='diff-btn'>Try Again</button>";
+            htmlStr += "<button id='menu-btn' class='diff-btn'>Main Menu</button></div>";
             ansLayer.innerHTML = htmlStr;
         }
     }
@@ -1019,27 +1078,21 @@ async function checkAnswer() {
         document.getElementById('next-btn').addEventListener('click', function() {
             currentLevel = currentLevel + 1;
             totalToSpawn = 3 + Math.floor(currentLevel * 0.8);
-            showLayer('');
-            startPlaying();
+            showLayer(''); startPlaying();
         });
     }
     if (document.getElementById('retry-btn')) {
         document.getElementById('retry-btn').addEventListener('click', function() {
-            showLayer('');
-            startPlaying();
+            showLayer(''); startPlaying();
         });
     }
     if (document.getElementById('menu-btn')) {
         document.getElementById('menu-btn').addEventListener('click', function() {
-            gameState = 'menu';
-            showLayer('ui-layer');
+            gameState = 'menu'; showLayer('ui-layer');
             menuNumbers = [];
-            for (let i = 0; i < 70; i = i + 1) {
-                menuNumbers.push(new MenuNumber(Math.random() * canvas.width));
-            }
+            for (let i = 0; i < 70; i = i + 1) { menuNumbers.push(new MenuNumber(Math.random() * canvas.width)); }
         });
     }
-    
     gameState = 'answered';
 }
 
