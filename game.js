@@ -4,15 +4,15 @@ import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, limit
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'neurostrike';
 
-// BE SURE YOUR ACTIVE API KEY IS HERE
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyBlr-ezU5LMwbcdk0-uIpHPO_6VS_JHo",
+  apiKey: "AIzaSyBlx-eaaSLRvbzdk3-ui7iPvFO_6VS_Jno",
   authDomain: "neurostrike-7bce9.firebaseapp.com",
   projectId: "neurostrike-7bce9",
   storageBucket: "neurostrike-7bce9.firebasestorage.app",
-  messagingSenderId: "674741069586",
-  appId: "1:674741069586:web:119fc7218d5c789c72120b",
-  measurementId: "G-FNB8ZXK176"
+  messagingSenderId: "674741069536",
+  appId: "1:674741069536:web:119fe721865c709b721285",
+  measurementId: "G-FN6DZX1T76"
 };
 
 let app, db, auth, googleProvider;
