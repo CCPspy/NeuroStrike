@@ -70,9 +70,12 @@
     </div>
     
     <div id="sub-level-layer" style="display: none;">
-        <div id="title-row">
-            <h1 id="sub-title">Select Level</h1>
-            <button id="btn-info" class="diff-btn">?</button>
+        <div id="title-row" style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; max-width: 400px; margin-bottom: 20px;">
+            <h1 id="sub-title" style="margin: 0;">Select Level</h1>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button id="btn-info" class="diff-btn">?</button>
+                <button id="btn-skip-diff" class="diff-btn" style="padding: 4px 8px; font-size: 12px; border-color: #ffaa00; color: #ffaa00;">Skip</button>
+            </div>
         </div>
         <div id="sub-buttons">
             <button class="diff-btn sub-btn" id="btn-sub-1">Level 1</button>

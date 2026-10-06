@@ -45,7 +45,8 @@ let customNeg = false;
 let customCalc = false;
 let customMaxScore = 0;
 let answerTime = 0;
-
+let gameStartTime = 0; // Anti-cheat timer
+let customAdShown = false; // Prevents spamming the advertisement popup
 // Calculator State
 let calcDisplay = '0';
 let calcOperand = null;
@@ -153,7 +154,12 @@ try {
             currentUser = user;
             playerName = user.displayName || "Player_" + user.uid.substring(0, 4);
             playerPfp = user.photoURL || `https://placehold.co/45x45/222222/00ffff?text=${playerName.charAt(0).toUpperCase()}`;
-            
+            const myScoreRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboards', user.uid);
+            const myScoreSnap = await getDoc(myScoreRef);
+            if (myScoreSnap.exists() && myScoreSnap.data().pfp) {
+                playerName = myScoreSnap.data().name || playerName;
+                playerPfp = myScoreSnap.data().pfp;
+            }
             document.getElementById('account-name-input').value = playerName;
             
             if(!playerPfp.startsWith('data:image')) {
@@ -300,7 +306,7 @@ document.getElementById('btn-save-account').addEventListener('click', async func
             const scoreDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboards', currentUser.uid);
             const snap = await getDoc(scoreDocRef);
             if(snap.exists()) {
-                await setDoc(scoreDocRef, { name: playerName, pfp: playerPfp }, { merge: true });
+                await setDoc(scoreDocRef, { name: playerName, pfp: playerPfp, uid: currentUser.uid }, { merge: true });
             }
             
             showPopup("Profile updated!");
@@ -337,11 +343,14 @@ window.showLayer = function(layerId) {
     document.getElementById('skip-layer').style.display = 'none';
     document.getElementById('custom-layer').style.display = 'none';
     document.getElementById('account-layer').style.display = 'none';
+    
+    // ADD THIS NEW LINE:
+    document.getElementById('unlock-modal-layer').style.display = 'none';
+    
     if (layerId !== '') {
         document.getElementById(layerId).style.display = 'flex';
     }
 }
-
 function showPopup(msg) {
     let pLayer = document.getElementById('popup-layer');
     let toast = document.createElement('div');
@@ -601,6 +610,8 @@ function startPlaying() {
     runningTotal3 = 0;
     spawnedCount = 0;
     initialKeyPress = '';
+    
+    gameStartTime = Date.now(); // Start the anti-cheat clock
     window.clearCalc();
 }
 
@@ -1006,29 +1017,60 @@ async function checkAnswer() {
         let diff1 = Math.abs(v1 - runningTotal1);
         let diff2 = (customColorMode === 'two' || customColorMode === 'three') ? Math.abs(v2 - runningTotal2) : 0;
         let diff3 = customColorMode === 'three' ? Math.abs(v3 - runningTotal3) : 0;
-        
         let totalDiff = diff1 + diff2 + diff3;
-        
+
+        // WALL 1: Independently recalculate the max score so F12 edits are ignored
+        let amount = parseInt(document.getElementById('c-amount-input').value) || 15;
+        let spd = parseFloat(document.getElementById('custom-speed').value) || 1.0;
+        let dig = parseInt(document.getElementById('custom-digits').value) || 1;
+        let cm = document.getElementById('custom-colormode').value;
+        let base = amount * dig * 10; 
+        let multi = 1.0 + (Math.pow(spd - 1.0, 1.5) * 0.8);
+        if (cm === 'decoys') multi += 0.3; 
+        if (cm === 'two') multi += 0.5;
+        if (cm === 'three') multi += 0.8;
+        if (document.getElementById('c-feat-swap').checked) multi += 0.6;
+        if (document.getElementById('c-feat-neg').checked) multi += 0.5;
+        if (document.getElementById('c-feat-calc').checked) multi *= 0.1;
+        if (multi < 0.1) multi = 0.1;
+        let safeMaxScore = Math.floor(base * multi);
+
         let earned = 0;
-        if (totalDiff === 0) { earned = customMaxScore; }
-        else if (totalDiff === 1) { earned = Math.floor(customMaxScore / 2); }
-        else if (totalDiff === 2) { earned = Math.floor(customMaxScore / 4); }
-        else { earned = 0; }
+        if (totalDiff === 0) { earned = safeMaxScore; }
+        else if (totalDiff === 1) { earned = Math.floor(safeMaxScore / 2); }
+        else if (totalDiff === 2) { earned = Math.floor(safeMaxScore / 4); }
+
+        // WALL 2: The Physics Check
+        let timePlayedSeconds = (Date.now() - gameStartTime) / 1000;
+        let framesPerSpawn = Math.floor(60 / spd);
+        if (framesPerSpawn < 5) framesPerSpawn = 5;
+        let minimumPossibleSeconds = ((framesPerSpawn / 60) * amount) * 0.5; 
+        
+        if (timePlayedSeconds < minimumPossibleSeconds) {
+            showPopup("🛑 CHEAT DETECTED: Game completed impossibly fast.");
+            earned = 0;
+        }
+        if (earned > 25000) {
+            showPopup("🛑 CHEAT DETECTED: Impossible score modification.");
+            earned = 0;
+        }
 
         let htmlStr = "<h2 style='color: #00ffff; text-shadow: 0 0 10px #00ffff; margin-bottom: 5px;'>CUSTOM RESULT</h2>";
-        if (totalDiff === 0) { 
+        if (earned === 0 && totalDiff === 0 && safeMaxScore > 0) {
+            htmlStr += "<h3 style='color: #ff0000; margin-top: 0;'>SCORE VOIDED</h3>"; 
+        } else if (totalDiff === 0) { 
             htmlStr += "<h3 style='color: #00ff00; margin-top: 0;'>Perfect!</h3>"; 
         } else { 
             htmlStr += "<h3 style='color: #ffaa00; margin-top: 0;'>Off by " + totalDiff + "</h3>"; 
-            
             let correctText = "Correct: " + runningTotal1;
             if (customColorMode === 'two') correctText = "Correct -> Grn: " + runningTotal1 + " | Cy: " + runningTotal2;
             if (customColorMode === 'three') correctText = "Correct -> Grn: " + runningTotal1 + " | Cy: " + runningTotal2 + " | Pk: " + runningTotal3;
             htmlStr += "<p style='color: #aaa; margin-top: 0; margin-bottom: 15px; font-size: 18px;'>" + correctText + "</p>";
         }
         
-        htmlStr += "<p style='color: white; font-size: 24px; margin-top: 0;'>Points Earned: " + earned + " / " + customMaxScore + "</p>";
+        htmlStr += "<p style='color: white; font-size: 24px; margin-top: 0;'>Points Earned: " + earned + " / " + safeMaxScore + "</p>";
         
+        // Final Database Save
         if (currentUser && earned > 0 && db) {
             const scoreDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboards', currentUser.uid);
             const snap = await getDoc(scoreDocRef);
@@ -1113,6 +1155,14 @@ async function checkAnswer() {
                 }
                 updateMainMenuButtons();
                 
+                // Pop up the custom leaderboard advertisement if they beat Easy mode
+                if (highestUnlocked >= 4 && !customAdShown) {
+                    setTimeout(() => { 
+                        showPopup("🌟 Custom Levels & Global Leaderboards are now unlocked!"); 
+                        customAdShown = true; 
+                    }, 2500);
+                }
+                
                 if (currentUser && db) {
                     const progRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'data');
                     setDoc(progRef, { highestUnlocked: highestUnlocked }, { merge: true });
@@ -1159,5 +1209,50 @@ async function checkAnswer() {
 for (let i = 0; i < 70; i = i + 1) {
     menuNumbers.push(new MenuNumber(Math.random() * canvas.width));
 }
+// --- SKIP DIFFICULTY LOGIC ---
+document.getElementById('btn-skip-diff').addEventListener('click', function() {
+    if (currentDifficulty === 'Impossible' || currentDifficulty === 'Custom') {
+        showPopup("No more difficulties to unlock!");
+        return;
+    }
+    document.getElementById('unlock-modal-layer').style.display = 'flex';
+});
 
+document.getElementById('btn-cancel-unlock').addEventListener('click', function() {
+    document.getElementById('unlock-modal-layer').style.display = 'none';
+});
+
+document.getElementById('btn-confirm-unlock').addEventListener('click', async function() {
+    document.getElementById('unlock-modal-layer').style.display = 'none';
+    
+    let targetUnlock = 1;
+    if (currentDifficulty === 'Easy') targetUnlock = 4; // Skips to Medium base
+    else if (currentDifficulty === 'Medium') targetUnlock = 7; // Skips to Hard base
+    else if (currentDifficulty === 'Hard') targetUnlock = 10; // Skips to Extreme base
+    else if (currentDifficulty === 'Extreme') targetUnlock = 13; // Skips to Impossible base
+    
+    if (highestUnlocked < targetUnlock) {
+        highestUnlocked = targetUnlock;
+        
+        // Save the skipped progress to Firebase so it persists across reloads
+        if (currentUser && db) {
+            const progRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'data');
+            await setDoc(progRef, { highestUnlocked: highestUnlocked }, { merge: true });
+        }
+        
+        updateMainMenuButtons();
+        updateSubButtons();
+        showPopup("Next difficulty unlocked!");
+        
+        // Notify them about custom levels if they skipped past Easy
+        if (highestUnlocked >= 4 && !customAdShown) {
+            setTimeout(() => {
+                showPopup("🌟 Custom Levels & Global Leaderboards are now unlocked!");
+                customAdShown = true;
+            }, 2500); // Waits for the first popup to fade
+        }
+    } else {
+        showPopup("Next difficulty is already unlocked!");
+    }
+});
 gameLoop();
