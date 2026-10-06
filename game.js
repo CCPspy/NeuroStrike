@@ -103,6 +103,24 @@ window.clearCalc = function() {
     window.updateCalcDisplay();
 }
 
+// FULLSCREEN HANDLER
+if (document.getElementById('btn-fullscreen')) {
+    document.getElementById('btn-fullscreen').addEventListener('click', function() {
+        let docEl = document.documentElement;
+        let isFullScreen = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+        
+        if (!isFullScreen) {
+            if (docEl.requestFullscreen) { docEl.requestFullscreen().catch(err => console.log(err)); } 
+            else if (docEl.webkitRequestFullscreen) { docEl.webkitRequestFullscreen(); } 
+            else if (docEl.msRequestFullscreen) { docEl.msRequestFullscreen(); }
+        } else {
+            if (document.exitFullscreen) { document.exitFullscreen(); } 
+            else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); } 
+            else if (document.msExitFullscreen) { document.msExitFullscreen(); }
+        }
+    });
+}
+
 try {
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
@@ -839,12 +857,11 @@ function gameLoop() {
                 spawnedCount++;
             }
             
+            // SPAWN DECOYS (Except on Easy)
             let spawnDecoy = false;
             if (currentLevel === 999) {
                 if (customColorMode !== 'one' && Math.random() < (0.025 * customSpeedMultiplier)) { spawnDecoy = true; }
-            } else if (currentDifficulty === 'Easy') {
-                if (Math.random() < 0.01) { spawnDecoy = true; }
-            } else {
+            } else if (currentDifficulty !== 'Easy') {
                 if (Math.random() < 0.02) { spawnDecoy = true; }
             }
             
@@ -863,12 +880,21 @@ function gameLoop() {
        let nextPlayNumbers = [];
         for (let i = 0; i < playNumbers.length; i = i + 1) {
             playNumbers[i].update();
-            playNumbers[i].draw();
             if (playNumbers[i].x > -400 && playNumbers[i].x < canvas.width + 400 && playNumbers[i].y > -400 && playNumbers[i].y < canvas.height + 400) {
                 nextPlayNumbers.push(playNumbers[i]);
             }
         }
         playNumbers = nextPlayNumbers;
+        
+        // DRAW DECOYS FIRST (So they stay in the background)
+        for (let i = 0; i < playNumbers.length; i++) {
+            if (playNumbers[i].type === 0) { playNumbers[i].draw(); }
+        }
+        
+        // DRAW REAL NUMBERS ON TOP
+        for (let i = 0; i < playNumbers.length; i++) {
+            if (playNumbers[i].type !== 0) { playNumbers[i].draw(); }
+        }
     }
     
     frameCount = frameCount + 1;
