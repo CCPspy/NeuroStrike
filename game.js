@@ -110,15 +110,6 @@ try {
     auth = getAuth(app);
     googleProvider = new GoogleAuthProvider();
 
-    if (typeof __initial_auth_token !== 'undefined') {
-        signInWithCustomToken(auth, __initial_auth_token).catch((error) => {
-            console.error("Custom token auth failed", error);
-            signInAnonymously(auth).catch(e => console.error(e));
-        });
-    } else {
-        signInAnonymously(auth).catch((error) => console.error("Anonymous auth failed (Enable it in Firebase console!)", error));
-    }
-
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
@@ -156,6 +147,9 @@ try {
                 updatePersistentLeaderboard();
             }, (err) => console.error("Snapshot error:", err));
         } else {
+            // FIX: Only trigger anonymous auth if NO account is detected
+            signInAnonymously(auth).catch((error) => console.error("Anonymous auth failed", error));
+            
             document.getElementById('btn-google-login').style.display = 'block';
             document.getElementById('user-profile-display').style.display = 'none';
         }
