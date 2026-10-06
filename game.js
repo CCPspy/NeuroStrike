@@ -104,19 +104,40 @@ window.clearCalc = function() {
 }
 
 // FULLSCREEN HANDLER
-if (document.getElementById('btn-fullscreen')) {
-    document.getElementById('btn-fullscreen').addEventListener('click', function() {
-        let docEl = document.documentElement;
-        let isFullScreen = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-        
-        if (!isFullScreen) {
-            if (docEl.requestFullscreen) { docEl.requestFullscreen().catch(err => console.log(err)); } 
-            else if (docEl.webkitRequestFullscreen) { docEl.webkitRequestFullscreen(); } 
-            else if (docEl.msRequestFullscreen) { docEl.msRequestFullscreen(); }
+const fsBtn = document.getElementById('btn-fullscreen');
+if (fsBtn) {
+    fsBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const docEl = document.documentElement;
+        const isFS = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+
+        if (!isFS) {
+            const requestFS = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+            if (requestFS) {
+                requestFS.call(docEl).then(() => {
+                    fsBtn.innerText = "[x] Exit Fullscreen";
+                }).catch(err => {
+                    console.warn("Fullscreen request failed:", err);
+                });
+            }
         } else {
-            if (document.exitFullscreen) { document.exitFullscreen(); } 
-            else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); } 
-            else if (document.msExitFullscreen) { document.msExitFullscreen(); }
+            const exitFS = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+            if (exitFS) {
+                exitFS.call(document).then(() => {
+                    fsBtn.innerText = "[  ] Fullscreen";
+                }).catch(err => {
+                    console.warn("Exit fullscreen failed:", err);
+                });
+            }
+        }
+    });
+
+    // Reset button text if user exits fullscreen via the Esc key
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) {
+            fsBtn.innerText = "[  ] Fullscreen";
         }
     });
 }
