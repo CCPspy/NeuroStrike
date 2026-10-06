@@ -1,17 +1,17 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, limit, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, limit, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'neurostrike';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBlx-eaaSLRvbzdk3-ui7iPvFO_6VS_Jno",
+  apiKey: "AIzaSyBlr-ezU5LMwbcdk0-uIpHPO_6VS_JHo",
   authDomain: "neurostrike-7bce9.firebaseapp.com",
   projectId: "neurostrike-7bce9",
   storageBucket: "neurostrike-7bce9.firebasestorage.app",
-  messagingSenderId: "674741069536",
-  appId: "1:674741069536:web:119fe721865c709b721285",
-  measurementId: "G-FN6DZX1T76"
+  messagingSenderId: "674741069586",
+  appId: "1:674741069586:web:119fc7218d5c789c72120b",
+  measurementId: "G-FNB8ZXK176"
 };
 
 let app, db, auth, googleProvider;
@@ -68,7 +68,11 @@ try {
             playerPfp = user.photoURL || `https://placehold.co/45x45/222222/00ffff?text=${playerName.charAt(0).toUpperCase()}`;
             
             document.getElementById('account-name-input').value = playerName;
-            document.getElementById('account-pfp-input').value = user.photoURL || "";
+            
+            // Only populate URL input if it's not a massive base64 string
+            if(!playerPfp.startsWith('data:image')) {
+                document.getElementById('account-pfp-input').value = user.photoURL || "";
+            }
 
             if (user.isAnonymous) {
                 document.getElementById('btn-google-login').style.display = 'block';
@@ -121,42 +125,118 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
         showPopup("Logged in with Google!");
     } catch (error) {
         console.error("Login failed", error);
-        if (error.code === 'auth/unauthorized-domain') {
-            showPopup("Error: Use 'localhost' instead of '127.0.0.1' in your browser URL!");
-        } else {
-            showPopup("Login cancelled or failed. Check your Popup Blocker!");
-        }
+        showPopup("Login cancelled. Please try again.");
+    }
+});
+
+// LOG OUT LOGIC
+document.getElementById('btn-logout').addEventListener('click', () => {
+    if (auth) {
+        auth.signOut().then(() => {
+            window.location.reload();
+        }).catch((error) => {
+            showPopup("Error logging out.");
+        });
     }
 });
 
 document.getElementById('user-profile-display').addEventListener('click', function() {
+    document.getElementById('pfp-preview').style.display = 'none';
     showLayer('account-layer');
 });
 document.getElementById('btn-cancel-account').addEventListener('click', function() {
     showLayer('ui-layer');
 });
 
+// FILE UPLOAD AND CROP LOGIC
+document.getElementById('btn-upload-trigger').addEventListener('click', () => {
+    document.getElementById('pfp-upload').click();
+});
+
+document.getElementById('pfp-upload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) { 
+        showPopup("File too large! Must be under 2MB."); 
+        return; 
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+            const pfpCanvas = document.getElementById('pfp-preview');
+            const pCtx = pfpCanvas.getContext('2d');
+            
+            // Crop perfect square from center
+            const size = Math.min(img.width, img.height);
+            const sx = (img.width - size) / 2;
+            const sy = (img.height - size) / 2;
+            
+            pCtx.clearRect(0, 0, 80, 80);
+            pCtx.drawImage(img, sx, sy, size, size, 0, 0, 80, 80);
+            
+            // Convert to tiny text string (Base64) to save directly to DB
+            const dataUrl = pfpCanvas.toDataURL('image/jpeg', 0.8);
+            document.getElementById('account-pfp-input').value = dataUrl;
+            pfpCanvas.style.display = 'block';
+        }
+        img.src = event.target.result;
+    }
+    reader.readAsDataURL(file);
+});
+
+// SAVING PROFILE AND NAME UNIQUENESS
 document.getElementById('btn-save-account').addEventListener('click', async function() {
     let newName = document.getElementById('account-name-input').value.trim();
     let newPfp = document.getElementById('account-pfp-input').value.trim();
     
     if (newName.length > 0 && currentUser) {
-        playerName = newName;
-        playerPfp = newPfp || `https://placehold.co/45x45/222222/00ffff?text=${playerName.charAt(0).toUpperCase()}`;
-        
-        await updateProfile(currentUser, { displayName: playerName, photoURL: newPfp });
-        
-        document.getElementById('display-name-text').innerText = playerName;
-        document.getElementById('display-pfp-img').src = playerPfp;
-        
-        const scoreDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboards', currentUser.uid);
-        const snap = await getDoc(scoreDocRef);
-        if(snap.exists()) {
-            await setDoc(scoreDocRef, { name: playerName, pfp: playerPfp }, { merge: true });
+        try {
+            // Check if name is taken
+            const lbSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'leaderboards'));
+            let nameTaken = false;
+            
+            lbSnap.forEach(d => {
+                let data = d.data();
+                if (data.name && data.name.toLowerCase() === newName.toLowerCase() && d.id !== currentUser.uid) {
+                    nameTaken = true;
+                }
+            });
+            
+            if (nameTaken) {
+                showPopup("That name is already taken! Choose another.");
+                return;
+            }
+            
+            playerName = newName;
+            playerPfp = newPfp || `https://placehold.co/45x45/222222/00ffff?text=${playerName.charAt(0).toUpperCase()}`;
+            
+            // Firebase Auth rejects very long base64 strings in the profile URL, so skip writing it there if it's base64
+            if (!newPfp.startsWith('data:image')) {
+                await updateProfile(currentUser, { displayName: playerName, photoURL: newPfp }).catch(e => console.log(e));
+            } else {
+                await updateProfile(currentUser, { displayName: playerName }).catch(e => console.log(e));
+            }
+            
+            document.getElementById('display-name-text').innerText = playerName;
+            document.getElementById('display-pfp-img').src = playerPfp;
+            
+            // Save the base64 or URL safely to leaderboard database
+            const scoreDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboards', currentUser.uid);
+            const snap = await getDoc(scoreDocRef);
+            if(snap.exists()) {
+                await setDoc(scoreDocRef, { name: playerName, pfp: playerPfp }, { merge: true });
+            }
+            
+            showPopup("Profile updated!");
+            showLayer('ui-layer');
+            
+        } catch(err) {
+            showPopup("Error saving profile!");
+            console.error(err);
         }
-        
-        showPopup("Profile updated!");
-        showLayer('ui-layer');
     }
 });
 
@@ -229,7 +309,7 @@ function updatePersistentLeaderboard() {
     let displayCount = Math.min(10, globalLeaderboard.length);
     
     if (displayCount === 0) {
-        lbContainer.innerHTML = "<div style='color: #888; text-align: center;'>Processing...</div>";
+        lbContainer.innerHTML = "<div style='color: #888; text-align: center;'>No scores yet. Be the first!</div>";
         return;
     }
     
@@ -238,12 +318,12 @@ function updatePersistentLeaderboard() {
         let isUser = currentUser && entry.uid === currentUser.uid;
         let color = isUser ? '#00ff00' : 'white';
         let weight = isUser ? 'bold' : 'normal';
-        let nameDisp = entry.name.length > 15 ? entry.name.substring(0, 13) + '...' : entry.name;
+        let nameDisp = entry.name.length > 15 ? entry.name.substring(0, 14) + '...' : entry.name;
         let pfpUrl = entry.pfp || `https://placehold.co/30x30/222222/00ffff?text=${nameDisp.charAt(0).toUpperCase()}`;
         
-        htmlStr += "<div style='color: " + color + "; font-weight: " + weight + "; font-size: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;'>";
-        htmlStr += "<div style='display: flex; align-items: center; gap: 12px;'>";
-        htmlStr += "<img src='" + pfpUrl + "' style='width: 30px; height: 30px; border-radius: 50%; border: 1px solid " + color + "; object-fit: cover;'>";
+        htmlStr += "<div style='color: " + color + "; font-weight: " + weight + "; font-size: 18px; display: flex; justify-content: space-between; align-items: center; padding: 4px 0;'>";
+        htmlStr += "<div style='display: flex; align-items: center; gap: 10px;'>";
+        htmlStr += "<img src='" + pfpUrl + "' style='width: 25px; height: 25px; border-radius: 50%; border: 1px solid " + color + "; object-fit: cover;'>";
         htmlStr += "<span>" + (j+1) + ". " + nameDisp + "</span>";
         htmlStr += "</div>";
         htmlStr += "<span>" + entry.score + "</span>";
@@ -452,7 +532,7 @@ for (let i = 0; i < subBtns.length; i = i + 1) {
 
 function startPlaying() {
     gameState = 'playing';
-    menuNumbers = [];
+    menuNumbers = []; // Memory flush
     playNumbers = [];
     runningTotal1 = 0;
     runningTotal2 = 0;
@@ -858,13 +938,13 @@ async function checkAnswer() {
             htmlStr += "<div style='color: #888; text-align: center;'>Processing...</div>";
         }
         
-        for (let j = 0; j < displayCount; j = j + 1) {
+        for (let j = 0; j < displayCount; j++) {
             let entry = globalLeaderboard[j];
             let isUser = currentUser && entry.uid === currentUser.uid;
             if (isUser) userInTop10 = true;
             let color = isUser ? '#00ff00' : 'white';
             let weight = isUser ? 'bold' : 'normal';
-            let nameDisp = entry.name.length > 15 ? entry.name.substring(0, 13) + '...' : entry.name;
+            let nameDisp = entry.name.length > 15 ? entry.name.substring(0, 14) + '...' : entry.name;
             let pfpUrl = entry.pfp || `https://placehold.co/30x30/222222/00ffff?text=${nameDisp.charAt(0).toUpperCase()}`;
             
             htmlStr += "<div style='color: " + color + "; font-weight: " + weight + "; font-size: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;'>";

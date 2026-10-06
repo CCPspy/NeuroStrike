@@ -61,18 +61,30 @@
             <h2 style="color: #00ffff; margin-top: 0; font-size: 30px;">ACCOUNT SETTINGS</h2>
             
             <div style="text-align: left; color: white; font-size: 18px;">
-                <label>Display Name (Max 14 chars):</label><br>
-                <input type="text" id="account-name-input" maxlength="14" placeholder="Your Name..." style="font-size: 20px; padding: 10px; margin-top: 5px; background: #222; color: white; border: 2px solid #00ffff; border-radius: 8px; width: 300px;">
+                <label>Display Name (Max 15 chars):</label><br>
+                <input type="text" id="account-name-input" maxlength="15" placeholder="Your Name..." style="font-size: 20px; padding: 10px; margin-top: 5px; background: #222; color: white; border: 2px solid #00ffff; border-radius: 8px; width: 300px; box-sizing: border-box;">
             </div>
 
             <div style="text-align: left; color: white; font-size: 18px;">
-                <label>Profile Picture (Image URL):</label><br>
-                <input type="url" id="account-pfp-input" placeholder="https://..." style="font-size: 20px; padding: 10px; margin-top: 5px; background: #222; color: white; border: 2px solid #00ffff; border-radius: 8px; width: 300px;">
+                <label>Profile Picture:</label><br>
+                <input type="url" id="account-pfp-input" placeholder="Image URL..." style="font-size: 16px; padding: 10px; margin-top: 5px; background: #222; color: white; border: 2px solid #00ffff; border-radius: 8px; width: 300px; box-sizing: border-box; margin-bottom: 10px;">
+                
+                <div style="display: flex; gap: 15px; align-items: center; justify-content: center; margin-bottom: 10px;">
+                    <span style="font-size: 14px; color: #aaa;">OR</span>
+                    <button id="btn-upload-trigger" class="diff-btn" style="padding: 6px 12px; font-size: 14px; border-color: #00ffff; color: #00ffff;">Upload File</button>
+                    <input type="file" id="pfp-upload" accept="image/png, image/jpeg, image/webp" style="display: none;">
+                </div>
+                
+                <canvas id="pfp-preview" width="80" height="80" style="border: 2px solid #00ffff; border-radius: 50%; display: none; margin: 0 auto; object-fit: cover;"></canvas>
             </div>
             
             <div style="display: flex; gap: 15px; justify-content: center; margin-top: 15px;">
                 <button id="btn-save-account" class="diff-btn" style="border-color: #00ff00; color: #00ff00;">Save Changes</button>
                 <button id="btn-cancel-account" class="diff-btn">Close</button>
+            </div>
+            
+            <div style="margin-top: 10px; padding-top: 15px; border-top: 1px solid #555;">
+                <button id="btn-logout" class="diff-btn" style="border-color: #ff0000; color: #ff0000; padding: 8px 16px; font-size: 16px;">Log Out</button>
             </div>
         </div>
     </div>
