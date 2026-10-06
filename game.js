@@ -4,7 +4,6 @@ import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, limit
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'neurostrike';
 
-// REPLACE THIS BLOCK WITH YOUR FIREBASE CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyBlr-ezU5LMwbcdk0-uIpHPO_6VS_JHo",
   authDomain: "neurostrike-7bce9.firebaseapp.com",
@@ -21,7 +20,6 @@ let playerName = "Player";
 let playerPfp = "";
 let globalLeaderboard = [];
 
-// CRITICAL FIX: Variables hoisted to prevent Strict Mode crashing the background
 let frameCount = 0;
 let runningTotal1 = 0;
 let runningTotal2 = 0;
@@ -48,7 +46,6 @@ let customCalc = false;
 let customMaxScore = 0;
 let answerTime = 0;
 
-// Wraps initialization in Try/Catch so if Firebase is not configured, the game still visually loads!
 try {
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
@@ -83,7 +80,6 @@ try {
                 document.getElementById('display-pfp-img').src = playerPfp;
             }
 
-            // Load Progress
             const progRef = doc(db, 'artifacts', appId, 'users', user.uid, 'progress', 'data');
             const progSnap = await getDoc(progRef);
             if (progSnap.exists()) {
@@ -91,7 +87,6 @@ try {
                 updateMainMenuButtons();
             }
 
-            // Real-time Leaderboard Sync 
             const lbRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboards');
             onSnapshot(lbRef, (snapshot) => {
                 globalLeaderboard = [];
@@ -100,14 +95,12 @@ try {
                 updatePersistentLeaderboard();
             }, (err) => console.error("Snapshot error:", err));
         } else {
-            // FIX: IF LOGIN FAILS ENTIRELY, FORCE THE LOGIN BUTTON TO SHOW
             document.getElementById('btn-google-login').style.display = 'block';
             document.getElementById('user-profile-display').style.display = 'none';
         }
     });
 } catch (error) {
     console.error("Firebase Init Failed:", error);
-    // Force button to show even if offline
     document.getElementById('btn-google-login').style.display = 'block';
     document.getElementById('btn-google-login').innerText = 'Offline Mode';
 }
@@ -118,7 +111,6 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
         let savedProgress = highestUnlocked;
         const result = await signInWithPopup(auth, googleProvider);
         
-        // Sync anonymous progress to real account
         const progRef = doc(db, 'artifacts', appId, 'users', result.user.uid, 'progress', 'data');
         const progSnap = await getDoc(progRef);
         let cloudProgress = progSnap.exists() ? progSnap.data().highestUnlocked || 1 : 1;
@@ -132,7 +124,7 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
         if (error.code === 'auth/unauthorized-domain') {
             showPopup("Error: Use 'localhost' instead of '127.0.0.1' in your browser URL!");
         } else {
-            showPopup("Login cancelled or failed.");
+            showPopup("Login cancelled or failed. Check your Popup Blocker!");
         }
     }
 });
@@ -157,7 +149,6 @@ document.getElementById('btn-save-account').addEventListener('click', async func
         document.getElementById('display-name-text').innerText = playerName;
         document.getElementById('display-pfp-img').src = playerPfp;
         
-        // Update their existing score name/pfp
         const scoreDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboards', currentUser.uid);
         const snap = await getDoc(scoreDocRef);
         if(snap.exists()) {
@@ -238,21 +229,21 @@ function updatePersistentLeaderboard() {
     let displayCount = Math.min(10, globalLeaderboard.length);
     
     if (displayCount === 0) {
-        lbContainer.innerHTML = "<div style='color: #888; text-align: center;'>No scores yet. Be the first!</div>";
+        lbContainer.innerHTML = "<div style='color: #888; text-align: center;'>Processing...</div>";
         return;
     }
     
-    for (let j = 0; j < displayCount; j++) {
+    for (let j = 0; j < displayCount; j = j + 1) {
         let entry = globalLeaderboard[j];
         let isUser = currentUser && entry.uid === currentUser.uid;
         let color = isUser ? '#00ff00' : 'white';
         let weight = isUser ? 'bold' : 'normal';
-        let nameDisp = entry.name.length > 14 ? entry.name.substring(0, 12) + '...' : entry.name;
+        let nameDisp = entry.name.length > 15 ? entry.name.substring(0, 13) + '...' : entry.name;
         let pfpUrl = entry.pfp || `https://placehold.co/30x30/222222/00ffff?text=${nameDisp.charAt(0).toUpperCase()}`;
         
-        htmlStr += "<div style='color: " + color + "; font-weight: " + weight + "; font-size: 18px; display: flex; justify-content: space-between; align-items: center; padding: 4px 0;'>";
-        htmlStr += "<div style='display: flex; align-items: center; gap: 10px;'>";
-        htmlStr += "<img src='" + pfpUrl + "' style='width: 25px; height: 25px; border-radius: 50%; border: 1px solid " + color + "; object-fit: cover;'>";
+        htmlStr += "<div style='color: " + color + "; font-weight: " + weight + "; font-size: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;'>";
+        htmlStr += "<div style='display: flex; align-items: center; gap: 12px;'>";
+        htmlStr += "<img src='" + pfpUrl + "' style='width: 30px; height: 30px; border-radius: 50%; border: 1px solid " + color + "; object-fit: cover;'>";
         htmlStr += "<span>" + (j+1) + ". " + nameDisp + "</span>";
         htmlStr += "</div>";
         htmlStr += "<span>" + entry.score + "</span>";
@@ -267,9 +258,9 @@ function updateSubButtons() {
     let btn2 = document.getElementById('btn-sub-2');
     let btn3 = document.getElementById('btn-sub-3');
     
-  btn1.className = 'diff-btn sub-btn';
+    btn1.className = 'diff-btn sub-btn';
     btn2.className = 'diff-btn sub-btn';
-   btn3.className = 'diff-btn sub-btn';
+    btn3.className = 'diff-btn sub-btn';
     
     if (highestUnlocked < base + 1) { btn1.classList.add('locked-btn'); }
     else if (highestUnlocked > base + 1) { btn1.classList.add('completed-btn'); }
@@ -290,7 +281,6 @@ function updateMainMenuButtons() {
     if (highestUnlocked > 9) { document.getElementById('btn-extreme').classList.remove('locked-btn'); }
     if (highestUnlocked > 12) { document.getElementById('btn-impossible').classList.remove('locked-btn'); }
 }
-
 
 document.getElementById('btn-easy').addEventListener('click', function() {
     openSubMenu('Easy', '#00ff00');
@@ -462,7 +452,7 @@ for (let i = 0; i < subBtns.length; i = i + 1) {
 
 function startPlaying() {
     gameState = 'playing';
-    menuNumbers = []; // Memory flush
+    menuNumbers = [];
     playNumbers = [];
     runningTotal1 = 0;
     runningTotal2 = 0;
@@ -473,7 +463,7 @@ function startPlaying() {
 
 window.addEventListener('keydown', function(e) {
     if (gameState === 'answered' && e.key === 'Enter') {
-        if (Date.now() - answerTime < 300) { return; } // Double enter 300ms debounce
+        if (Date.now() - answerTime < 300) { return; } 
         
         if (document.getElementById('next-btn')) { document.getElementById('next-btn').click(); }
         else if (document.getElementById('retry-btn')) { document.getElementById('retry-btn').click(); }
@@ -485,7 +475,7 @@ window.addEventListener('keydown', function(e) {
             if (e.key !== 'Enter') {
                 initialKeyPress = e.key;
             }
-            playNumbers = []; // instantly forces answer layer hook
+            playNumbers = [];
         }
     }
 });
@@ -868,7 +858,7 @@ async function checkAnswer() {
             htmlStr += "<div style='color: #888; text-align: center;'>Processing...</div>";
         }
         
-        for (let j = 0; j < displayCount; j++) {
+        for (let j = 0; j < displayCount; j = j + 1) {
             let entry = globalLeaderboard[j];
             let isUser = currentUser && entry.uid === currentUser.uid;
             if (isUser) userInTop10 = true;
