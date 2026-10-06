@@ -1210,20 +1210,24 @@ for (let i = 0; i < 70; i = i + 1) {
     menuNumbers.push(new MenuNumber(Math.random() * canvas.width));
 }
 // --- SKIP DIFFICULTY LOGIC ---
-document.getElementById('btn-skip-diff').addEventListener('click', function() {
+// Using "?." (Optional Chaining) prevents crashes if index.html is outdated
+document.getElementById('btn-skip-diff')?.addEventListener('click', function() {
     if (currentDifficulty === 'Impossible' || currentDifficulty === 'Custom') {
         showPopup("No more difficulties to unlock!");
         return;
     }
-    document.getElementById('unlock-modal-layer').style.display = 'flex';
+    const modal = document.getElementById('unlock-modal-layer');
+    if (modal) modal.style.display = 'flex';
 });
 
-document.getElementById('btn-cancel-unlock').addEventListener('click', function() {
-    document.getElementById('unlock-modal-layer').style.display = 'none';
+document.getElementById('btn-cancel-unlock')?.addEventListener('click', function() {
+    const modal = document.getElementById('unlock-modal-layer');
+    if (modal) modal.style.display = 'none';
 });
 
-document.getElementById('btn-confirm-unlock').addEventListener('click', async function() {
-    document.getElementById('unlock-modal-layer').style.display = 'none';
+document.getElementById('btn-confirm-unlock')?.addEventListener('click', async function() {
+    const modal = document.getElementById('unlock-modal-layer');
+    if (modal) modal.style.display = 'none';
     
     let targetUnlock = 1;
     if (currentDifficulty === 'Easy') targetUnlock = 4; // Skips to Medium base
@@ -1255,4 +1259,5 @@ document.getElementById('btn-confirm-unlock').addEventListener('click', async fu
         showPopup("Next difficulty is already unlocked!");
     }
 });
+
 gameLoop();
