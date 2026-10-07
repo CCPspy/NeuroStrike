@@ -385,7 +385,7 @@ window.showLayer = function(layerId) {
         }
     }
 }
-function showPopup(msg) {
+function showPopup(msg, duration = 2500) {
     let pLayer = document.getElementById('popup-layer');
     let toast = document.createElement('div');
     toast.className = 'toast-popup';
@@ -399,7 +399,7 @@ function showPopup(msg) {
             toasts[i].style.opacity = '0';
         }
         setTimeout(function() { pLayer.innerHTML = ''; }, 500);
-    }, 2500);
+    }, duration); // Uses the new duration variable here
 }
 
 function getDifficultyBaseOffset() {
@@ -1197,7 +1197,7 @@ async function checkAnswer() {
                 
                 if (highestUnlocked >= 4 && !customAdShown) {
                     setTimeout(() => { 
-                        showPopup("🌟 Custom Levels & Global Leaderboards are now unlocked!"); 
+                        showPopup("🌟 Custom Levels & Global Leaderboards are now unlocked!", 7000); 
                         customAdShown = true; 
                     }, 2500);
                 }
@@ -1320,7 +1320,7 @@ document.getElementById('btn-confirm-unlock')?.addEventListener('click', async f
         
         if (highestUnlocked >= 4 && !customAdShown) {
             setTimeout(() => {
-                showPopup("🌟 Custom Levels & Global Leaderboards are now unlocked!");
+                showPopup("🌟 Custom Levels & Global Leaderboards are now unlocked!", 7000);
                 customAdShown = true;
             }, 2500);
         }
