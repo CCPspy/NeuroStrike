@@ -149,6 +149,15 @@ try {
     auth = getAuth(app);
     googleProvider = new GoogleAuthProvider();
 
+    // NEW LOCATION: Fetch leaderboard for everyone, even guests
+    const lbRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboards');
+    onSnapshot(lbRef, (snapshot) => {
+        globalLeaderboard = [];
+        snapshot.forEach(d => globalLeaderboard.push(d.data()));
+        globalLeaderboard.sort((a, b) => b.score - a.score);
+        updatePersistentLeaderboard();
+    }, (err) => console.error("Snapshot error:", err));
+
     onAuthStateChanged(auth, async (user) => {
         // INSTANTLY KILL OLD ANONYMOUS ACCOUNTS
         if (user && user.isAnonymous) {
@@ -195,14 +204,6 @@ try {
                 setDoc(progRef, { highestUnlocked: highestUnlocked, completedLevels: completedLevels }, { merge: true });
             }
             updateMainMenuButtons();
-
-            const lbRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboards');
-            onSnapshot(lbRef, (snapshot) => {
-                globalLeaderboard = [];
-                snapshot.forEach(d => globalLeaderboard.push(d.data()));
-                globalLeaderboard.sort((a, b) => b.score - a.score);
-                updatePersistentLeaderboard();
-            }, (err) => console.error("Snapshot error:", err));
             
         } else {
             currentUser = null;
