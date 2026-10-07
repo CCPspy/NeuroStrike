@@ -1190,16 +1190,15 @@ async function checkAnswer() {
             if (currentLevel === highestUnlocked) {
                 highestUnlocked = highestUnlocked + 1;
                 let base = getDifficultyBaseOffset();
-                if (highestUnlocked === base + 4) {
-                    showPopup("New Difficulty Unlocked!");
-                }
                 updateMainMenuButtons();
                 
-                if (highestUnlocked >= 4 && !customAdShown) {
-                    setTimeout(() => { 
-                        showPopup("🌟 Custom Levels & Global Leaderboards are now unlocked!", 7000); 
-                        customAdShown = true; 
-                    }, 2500);
+                if (highestUnlocked === base + 4) {
+                    if (highestUnlocked >= 4 && !customAdShown) {
+                        showPopup("New Difficulty Unlocked!\n🌟 Custom Levels & Leaderboards are now available!", 7000);
+                        customAdShown = true;
+                    } else {
+                        showPopup("New Difficulty Unlocked!");
+                    }
                 }
             }
             
@@ -1316,17 +1315,16 @@ document.getElementById('btn-confirm-unlock')?.addEventListener('click', async f
         
         updateMainMenuButtons();
         updateSubButtons();
-        showPopup("Next difficulty unlocked!");
         
         if (highestUnlocked >= 4 && !customAdShown) {
-            setTimeout(() => {
-                showPopup("🌟 Custom Levels & Global Leaderboards are now unlocked!", 7000);
-                customAdShown = true;
-            }, 2500);
-        }
+        showPopup("Next difficulty unlocked!\n🌟 Custom Levels & Global Leaderboards are now available!", 7000);
+        customAdShown = true;
     } else {
-        showPopup("Next difficulty is already unlocked!");
+        showPopup("Next difficulty unlocked!");
     }
+} else {
+    showPopup("Next difficulty is already unlocked!");
+}
 });
 
 gameLoop();
