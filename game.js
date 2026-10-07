@@ -19,7 +19,9 @@ let currentUser = null;
 let playerName = "Player";
 let playerPfp = "";
 let globalLeaderboard = [];
-
+let highestUnlocked = 1; 
+let completedLevels = []; // NEW: Tracks actual wins separately from skips
+let currentLevel = 0;
 let frameCount = 0;
 let runningTotal1 = 0;
 let runningTotal2 = 0;
@@ -180,6 +182,7 @@ try {
             const progSnap = await getDoc(progRef);
             if (progSnap.exists()) {
                 highestUnlocked = progSnap.data().highestUnlocked || 1;
+                completedLevels = progSnap.data().completedLevels || Array.from({length: highestUnlocked - 1}, (_, i) => i + 1);
                 updateMainMenuButtons();
             }
 
@@ -424,13 +427,13 @@ function updateSubButtons() {
     btn3.className = 'diff-btn sub-btn';
     
     if (highestUnlocked < base + 1) { btn1.classList.add('locked-btn'); }
-    else if (highestUnlocked > base + 1) { btn1.classList.add('completed-btn'); }
+    else if (completedLevels.includes(base + 1)) { btn1.classList.add('completed-btn'); }
     
     if (highestUnlocked < base + 2) { btn2.classList.add('locked-btn'); }
-    else if (highestUnlocked > base + 2) { btn2.classList.add('completed-btn'); }
+    else if (completedLevels.includes(base + 2)) { btn2.classList.add('completed-btn'); }
     
     if (highestUnlocked < base + 3) { btn3.classList.add('locked-btn'); }
-    else if (highestUnlocked > base + 3) { btn3.classList.add('completed-btn'); }
+    else if (completedLevels.includes(base + 3)) { btn3.classList.add('completed-btn'); }
 }
 
 function updateMainMenuButtons() {
@@ -1153,6 +1156,12 @@ async function checkAnswer() {
         }
         
         if (isCorrect) {
+            let newlyCompleted = false;
+            if (!completedLevels.includes(currentLevel)) {
+                completedLevels.push(currentLevel);
+                newlyCompleted = true;
+            }
+
             if (currentLevel === highestUnlocked) {
                 highestUnlocked = highestUnlocked + 1;
                 let base = getDifficultyBaseOffset();
@@ -1161,18 +1170,18 @@ async function checkAnswer() {
                 }
                 updateMainMenuButtons();
                 
-                // Pop up the custom leaderboard advertisement if they beat Easy mode
                 if (highestUnlocked >= 4 && !customAdShown) {
                     setTimeout(() => { 
                         showPopup("🌟 Custom Levels & Global Leaderboards are now unlocked!"); 
                         customAdShown = true; 
                     }, 2500);
                 }
-                
-                if (currentUser && db) {
-                    const progRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'data');
-                    setDoc(progRef, { highestUnlocked: highestUnlocked }, { merge: true });
-                }
+            }
+            
+            // Save to Firebase anytime a new level is legitimately beaten
+            if (currentUser && db && newlyCompleted) {
+                const progRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'data');
+                setDoc(progRef, { highestUnlocked: highestUnlocked, completedLevels: completedLevels }, { merge: true });
             }
             
             let htmlStr = "<h2 style='color: #00ff00; text-shadow: 0 0 10px #00ff00;'>CORRECT!</h2>";
@@ -1216,14 +1225,40 @@ for (let i = 0; i < 70; i = i + 1) {
     menuNumbers.push(new MenuNumber(Math.random() * canvas.width));
 }
 // --- SKIP DIFFICULTY LOGIC ---
-// Using "?." prevents crashes if the HTML hasn't updated yet!
 document.getElementById('btn-skip-diff')?.addEventListener('click', function() {
     if (currentDifficulty === 'Impossible' || currentDifficulty === 'Custom') {
         showPopup("No more difficulties to unlock!");
         return;
     }
+    
+    let targetUnlock = 1;
+    if (currentDifficulty === 'Easy') targetUnlock = 4;
+    else if (currentDifficulty === 'Medium') targetUnlock = 7;
+    else if (currentDifficulty === 'Hard') targetUnlock = 10;
+    else if (currentDifficulty === 'Extreme') targetUnlock = 13;
+
     const modal = document.getElementById('unlock-modal-layer');
-    if (modal) modal.style.display = 'flex';
+    if (modal) {
+        const title = modal.querySelector('h2');
+        const text = modal.querySelector('p');
+        const confirmBtn = document.getElementById('btn-confirm-unlock');
+        const cancelBtn = document.getElementById('btn-cancel-unlock');
+
+        if (highestUnlocked >= targetUnlock) {
+            title.innerText = "ALREADY UNLOCKED";
+            title.style.color = "#00ff00";
+            text.innerText = "The next difficulty tier is already available on the main menu.";
+            confirmBtn.style.display = 'none';
+            cancelBtn.innerText = "Close";
+        } else {
+            title.innerText = "Unlock Next Difficulty?";
+            title.style.color = "#ffaa00";
+            text.innerText = "This will permanently unlock the next tier, but your skipped levels will remain uncompleted.";
+            confirmBtn.style.display = 'block';
+            cancelBtn.innerText = "Cancel";
+        }
+        modal.style.display = 'flex';
+    }
 });
 
 document.getElementById('btn-cancel-unlock')?.addEventListener('click', function() {
