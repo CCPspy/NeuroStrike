@@ -19,9 +19,6 @@ let currentUser = null;
 let playerName = "Player";
 let playerPfp = "";
 let globalLeaderboard = [];
-let highestUnlocked = 1; 
-let completedLevels = []; // NEW: Tracks actual wins separately from skips
-let currentLevel = 0;
 let frameCount = 0;
 let runningTotal1 = 0;
 let runningTotal2 = 0;
@@ -49,6 +46,7 @@ let customMaxScore = 0;
 let answerTime = 0;
 let gameStartTime = 0; // Anti-cheat timer
 let customAdShown = false; // Prevents spamming the advertisement popup
+let completedLevels = []; // NEW: Tracks actual wins separately from skips
 // Calculator State
 let calcDisplay = '0';
 let calcOperand = null;
