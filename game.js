@@ -2,6 +2,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, limit, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+// OPEN THE WRAPPER HERE
+(function() {
+
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'neurostrike';
 
 const firebaseConfig = {
@@ -1325,3 +1328,5 @@ document.getElementById('btn-confirm-unlock')?.addEventListener('click', async f
 });
 
 gameLoop();
+
+})();
