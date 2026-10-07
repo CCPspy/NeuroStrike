@@ -344,11 +344,17 @@ window.showLayer = function(layerId) {
     document.getElementById('custom-layer').style.display = 'none';
     document.getElementById('account-layer').style.display = 'none';
     
-    // ADD THIS NEW LINE:
-    document.getElementById('unlock-modal-layer').style.display = 'none';
+    // Safety check for the new modal
+    let unlockModal = document.getElementById('unlock-modal-layer');
+    if (unlockModal) {
+        unlockModal.style.display = 'none';
+    }
     
     if (layerId !== '') {
-        document.getElementById(layerId).style.display = 'flex';
+        let targetLayer = document.getElementById(layerId);
+        if (targetLayer) {
+            targetLayer.style.display = 'flex';
+        }
     }
 }
 function showPopup(msg) {
