@@ -150,10 +150,17 @@ try {
     googleProvider = new GoogleAuthProvider();
 
     onAuthStateChanged(auth, async (user) => {
+        // INSTANTLY KILL OLD ANONYMOUS ACCOUNTS
+        if (user && user.isAnonymous) {
+            auth.signOut();
+            return;
+        }
+
         if (user) {
             currentUser = user;
             playerName = user.displayName || "Player_" + user.uid.substring(0, 4);
             playerPfp = user.photoURL || `https://placehold.co/45x45/222222/00ffff?text=${playerName.charAt(0).toUpperCase()}`;
+            
             const myScoreRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboards', user.uid);
             const myScoreSnap = await getDoc(myScoreRef);
             if (myScoreSnap.exists() && myScoreSnap.data().pfp) {
@@ -166,23 +173,28 @@ try {
                 document.getElementById('account-pfp-input').value = user.photoURL || "";
             }
 
-            if (user.isAnonymous) {
-                document.getElementById('btn-google-login').style.display = 'block';
-                document.getElementById('user-profile-display').style.display = 'none';
-            } else {
-                document.getElementById('btn-google-login').style.display = 'none';
-                document.getElementById('user-profile-display').style.display = 'flex';
-                document.getElementById('display-name-text').innerText = playerName;
-                document.getElementById('display-pfp-img').src = playerPfp;
-            }
+            document.getElementById('btn-google-login').style.display = 'none';
+            document.getElementById('user-profile-display').style.display = 'flex';
+            document.getElementById('display-name-text').innerText = playerName;
+            document.getElementById('display-pfp-img').src = playerPfp;
+
+            // SYNC LOCAL PROGRESS TO CLOUD ON FIRST LOGIN
+            let localHighest = parseInt(localStorage.getItem('ns_highestUnlocked')) || 1;
+            let storedCompleted = localStorage.getItem('ns_completedLevels');
+            let localCompleted = storedCompleted ? JSON.parse(storedCompleted) : Array.from({length: localHighest - 1}, (_, i) => i + 1);
 
             const progRef = doc(db, 'artifacts', appId, 'users', user.uid, 'progress', 'data');
             const progSnap = await getDoc(progRef);
-            if (progSnap.exists()) {
+            
+            if (progSnap.exists() && progSnap.data().highestUnlocked >= localHighest) {
                 highestUnlocked = progSnap.data().highestUnlocked || 1;
                 completedLevels = progSnap.data().completedLevels || Array.from({length: highestUnlocked - 1}, (_, i) => i + 1);
-                updateMainMenuButtons();
+            } else {
+                highestUnlocked = Math.max(localHighest, progSnap.exists() ? progSnap.data().highestUnlocked || 1 : 1);
+                completedLevels = [...new Set([...localCompleted, ...(progSnap.exists() ? progSnap.data().completedLevels || [] : [])])];
+                setDoc(progRef, { highestUnlocked: highestUnlocked, completedLevels: completedLevels }, { merge: true });
             }
+            updateMainMenuButtons();
 
             const lbRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboards');
             onSnapshot(lbRef, (snapshot) => {
@@ -191,14 +203,28 @@ try {
                 globalLeaderboard.sort((a, b) => b.score - a.score);
                 updatePersistentLeaderboard();
             }, (err) => console.error("Snapshot error:", err));
+            
         } else {
-            signInAnonymously(auth).catch((error) => console.error("Anonymous auth failed", error));
+            currentUser = null;
+            
+            // LOAD FROM BROWSER LOCAL STORAGE FOR GUESTS
+            highestUnlocked = parseInt(localStorage.getItem('ns_highestUnlocked')) || 1;
+            let storedCompleted = localStorage.getItem('ns_completedLevels');
+            completedLevels = storedCompleted ? JSON.parse(storedCompleted) : Array.from({length: highestUnlocked - 1}, (_, i) => i + 1);
+            updateMainMenuButtons();
+            
             document.getElementById('btn-google-login').style.display = 'block';
             document.getElementById('user-profile-display').style.display = 'none';
         }
     });
 } catch (error) {
     console.error("Firebase Init Failed:", error);
+    
+    highestUnlocked = parseInt(localStorage.getItem('ns_highestUnlocked')) || 1;
+    let storedCompleted = localStorage.getItem('ns_completedLevels');
+    completedLevels = storedCompleted ? JSON.parse(storedCompleted) : Array.from({length: highestUnlocked - 1}, (_, i) => i + 1);
+    updateMainMenuButtons();
+    
     document.getElementById('btn-google-login').style.display = 'block';
     document.getElementById('btn-google-login').innerText = 'Offline Mode';
 }
@@ -1176,10 +1202,13 @@ async function checkAnswer() {
                 }
             }
             
-            // Save to Firebase anytime a new level is legitimately beaten
+            // Save to Firebase if logged in, otherwise save to browser storage
             if (currentUser && db && newlyCompleted) {
                 const progRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'data');
                 setDoc(progRef, { highestUnlocked: highestUnlocked, completedLevels: completedLevels }, { merge: true });
+            } else if (!currentUser && newlyCompleted) {
+                localStorage.setItem('ns_highestUnlocked', highestUnlocked);
+                localStorage.setItem('ns_completedLevels', JSON.stringify(completedLevels));
             }
             
             let htmlStr = "<h2 style='color: #00ff00; text-shadow: 0 0 10px #00ff00;'>CORRECT!</h2>";
@@ -1280,6 +1309,8 @@ document.getElementById('btn-confirm-unlock')?.addEventListener('click', async f
         if (currentUser && db) {
             const progRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'data');
             await setDoc(progRef, { highestUnlocked: highestUnlocked }, { merge: true });
+        } else {
+            localStorage.setItem('ns_highestUnlocked', highestUnlocked);
         }
         
         updateMainMenuButtons();
