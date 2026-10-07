@@ -712,15 +712,12 @@ const colorPalette = [
 // 🛑 WARNING: NEUROSTRIKE PROPRIETARY CODE 🛑
 // ============================================================================
 // This game logic and engine were written from scratch by Yanxi Li (Eric).
-// If you are reading this, you are probably trying to inspect or steal my 
-// CS50 final project. Please don't copy this code for your own assignments.
 // © 2026 Yanxi Li (Eric). All Rights Reserved.
 // ============================================================================
 
 console.log("%c🛑 HOLD UP!", "color: red; font-size: 50px; font-weight: bold; text-shadow: 2px 2px 0 black, 0 0 10px red;");
 console.log("%cThis game and its underlying code were created by Yanxi Li (Eric).", "font-size: 18px; color: white; font-weight: bold;");
 console.log("%cIf someone told you to copy and paste something here, they are trying to steal your data or mess with your leaderboard score.", "font-size: 16px; color: #ffaa00;");
-console.log("%cSeriously though, please don't steal my CS50 project code. - Eric", "font-size: 14px; font-style: italic; color: #00ffff;");
 
 // ============================================================================
 // END OF COPYRIGHT WARNING
