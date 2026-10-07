@@ -1216,7 +1216,7 @@ for (let i = 0; i < 70; i = i + 1) {
     menuNumbers.push(new MenuNumber(Math.random() * canvas.width));
 }
 // --- SKIP DIFFICULTY LOGIC ---
-// Using "?." (Optional Chaining) prevents crashes if index.html is outdated
+// Using "?." prevents crashes if the HTML hasn't updated yet!
 document.getElementById('btn-skip-diff')?.addEventListener('click', function() {
     if (currentDifficulty === 'Impossible' || currentDifficulty === 'Custom') {
         showPopup("No more difficulties to unlock!");
@@ -1236,15 +1236,14 @@ document.getElementById('btn-confirm-unlock')?.addEventListener('click', async f
     if (modal) modal.style.display = 'none';
     
     let targetUnlock = 1;
-    if (currentDifficulty === 'Easy') targetUnlock = 4; // Skips to Medium base
-    else if (currentDifficulty === 'Medium') targetUnlock = 7; // Skips to Hard base
-    else if (currentDifficulty === 'Hard') targetUnlock = 10; // Skips to Extreme base
-    else if (currentDifficulty === 'Extreme') targetUnlock = 13; // Skips to Impossible base
+    if (currentDifficulty === 'Easy') targetUnlock = 4;
+    else if (currentDifficulty === 'Medium') targetUnlock = 7;
+    else if (currentDifficulty === 'Hard') targetUnlock = 10;
+    else if (currentDifficulty === 'Extreme') targetUnlock = 13;
     
     if (highestUnlocked < targetUnlock) {
         highestUnlocked = targetUnlock;
         
-        // Save the skipped progress to Firebase so it persists across reloads
         if (currentUser && db) {
             const progRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'data');
             await setDoc(progRef, { highestUnlocked: highestUnlocked }, { merge: true });
@@ -1254,12 +1253,11 @@ document.getElementById('btn-confirm-unlock')?.addEventListener('click', async f
         updateSubButtons();
         showPopup("Next difficulty unlocked!");
         
-        // Notify them about custom levels if they skipped past Easy
         if (highestUnlocked >= 4 && !customAdShown) {
             setTimeout(() => {
                 showPopup("🌟 Custom Levels & Global Leaderboards are now unlocked!");
                 customAdShown = true;
-            }, 2500); // Waits for the first popup to fade
+            }, 2500);
         }
     } else {
         showPopup("Next difficulty is already unlocked!");
